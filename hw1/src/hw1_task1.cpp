@@ -68,9 +68,9 @@ int main(int argc, char** argv)
         targets[i] = id;
     } 
 
-    /* Subscribe to topic message. When receiving calls chatterCallBack. */
     ros::NodeHandle n;
+    /* Subscribe to topic tag_detections. */
     ros::Subscriber sub = n.subscribe("tag_detections", Q_LEN, printPose);
-    ros::spin(); /* Equivalent to the loop in example1_a.cpp without the limitation of 10Hz. */
+    ros::spin();
     return 0;
 }
