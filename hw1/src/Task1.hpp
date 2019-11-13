@@ -45,6 +45,9 @@ class Task1
     private:
         /* Requires as parameter a ConstPtr of the appropriate type. */
         static void printPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg);
+
+        static int targets[N];
+        static int targetNum;
 };
 
 #endif

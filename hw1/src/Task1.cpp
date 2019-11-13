@@ -2,6 +2,10 @@
 
 #include <ros/ros.h>
 
+/* Static variables definition. */
+int Task1::targets[Task1::N];
+int Task1::targetNum = 0;
+
 Task1::Task1()
 {}
 
@@ -23,9 +27,8 @@ bool Task1::init(int argc, char** argv)
     }
 
     /* Link each frame_id to its id. */
-    int targets[N];
     int i;
-    for (int i = 1; i < argc; ++i)
+    for (i = 1; i < argc; ++i)
     {
         int id = 0;
         while (id < N && frames[id] != argv[i])
@@ -38,8 +41,9 @@ bool Task1::init(int argc, char** argv)
             ROS_INFO("Unknown frame_id\n");
             return false;
         }
-        targets[i] = id;
+        targets[i-1] = id;
     }
+    targetNum = i;
     return true;
 }
 
