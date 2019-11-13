@@ -76,24 +76,34 @@ void Task1::run()
     ros::spin();
 }
 
-/* Requires as parameter a ConstPtr of the appropriate type. */
-void Task1::printPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg)
+void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
 {
-    /* Check whether msg is the pose of a target object. */
     int i = 0;
-    while (i < targetNum && stoi(msg->header.frame_id) != targets[i])
+    while (i < msg->detections.size())
     {
+        int j = 0;
+        while (j < targetNum)
+        {
+            if (msg->detections[i].id[0] == targets[j])
+            {
+                /* Print object frame_id. */
+                outputFile << "Object: " << frames[targets[j]] << std::endl;
+
+                /* Print object orientation. */
+                outputFile  << "Orientation:\n" << "  w = " << msg->detections[i].pose.pose.pose.orientation.w << "\n  x = "
+                    << msg->detections[i].pose.pose.pose.orientation.x << "\n  y = " << msg->detections[i].pose.pose.pose.orientation.y
+                    << "\n  z = " << msg->detections[i].pose.pose.pose.orientation.z << std::endl;
+
+                /* Print object position. */
+                outputFile  << "Position:\n" << "  x = " << msg->detections[i].pose.pose.pose.position.x << "\n  y = "
+                            << msg->detections[i].pose.pose.pose.position.y << "\n  z = " << msg->detections[i].pose.pose.pose.position.z << std::endl;
+
+                /* Print object separator. */
+                outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
+                break;
+            }
+            ++j;
+        }
         ++i;
-    }
-    /* Print the pose of the object if it is a target. */
-    if (i < targetNum)
-    {
-        /* Print object orientation. */
-        outputFile  << "Orientation:\n" << "  w = " << msg->pose.pose.orientation.w << "\n  x = "
-                    << msg->pose.pose.orientation.x << "\n  y = " << msg->pose.pose.orientation.y
-                    << "\n  z = " << msg->pose.pose.orientation.z << std::endl;
-        /* Print object position. */
-        outputFile  << "Position:\n" << "  x = " << msg->pose.pose.position.x << "\n  y = "
-                    << msg->pose.pose.position.y << "\n  z = " << msg->pose.pose.position.z << std::endl;
     }
 }

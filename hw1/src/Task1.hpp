@@ -3,7 +3,7 @@
 
 #include <fstream>
 #include <string>
-#include "geometry_msgs/PoseWithCovarianceStamped.h"
+#include "apriltag_ros/AprilTagDetectionArray.h"
 
 class Task1
 {
@@ -29,7 +29,7 @@ class Task1
 
     private:
         /* Requires as parameter a ConstPtr of the appropriate type. */
-        static void printPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg);
+        static void printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg);
 
         static int targets[N];
         static int targetNum;

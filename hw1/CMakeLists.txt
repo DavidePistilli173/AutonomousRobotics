@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   message_generation
+  apriltag_ros
 )
 
 ## System dependencies are found with CMake's conventions
