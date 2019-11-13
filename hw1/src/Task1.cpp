@@ -27,6 +27,9 @@ const std::string Task1::frames[N] =
         "red_prism_2"
     };
 
+
+/* Definitions of methods from class Task1. */
+
 Task1::Task1()
 {}
 
@@ -71,39 +74,47 @@ bool Task1::init(int argc, char** argv)
 void Task1::run()
 {
     ros::NodeHandle n;
-    /* Subscribe to topic tag_detections. */
+    /* Subscribe to topic TOPIC_NAME. */
     ros::Subscriber sub = n.subscribe(TOPIC_NAME, Q_LEN, printPose);
     ros::spin();
 }
 
 void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
 {
-    int i = 0;
-    while (i < msg->detections.size())
+    /* Loop through all detections. */
+    for (auto &detection : msg->detections)
     {
         int j = 0;
-        while (j < targetNum)
+        /* If the detection does not match a target, move on. */
+        while (j < targetNum && detection.id[0] != targets[j])
         {
-            if (msg->detections[i].id[0] == targets[j])
-            {
-                /* Print object frame_id. */
-                outputFile << "Object: " << frames[targets[j]] << std::endl;
-
-                /* Print object orientation. */
-                outputFile  << "Orientation:\n" << "  w = " << msg->detections[i].pose.pose.pose.orientation.w << "\n  x = "
-                    << msg->detections[i].pose.pose.pose.orientation.x << "\n  y = " << msg->detections[i].pose.pose.pose.orientation.y
-                    << "\n  z = " << msg->detections[i].pose.pose.pose.orientation.z << std::endl;
-
-                /* Print object position. */
-                outputFile  << "Position:\n" << "  x = " << msg->detections[i].pose.pose.pose.position.x << "\n  y = "
-                            << msg->detections[i].pose.pose.pose.position.y << "\n  z = " << msg->detections[i].pose.pose.pose.position.z << std::endl;
-
-                /* Print object separator. */
-                outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
-                break;
-            }
             ++j;
         }
-        ++i;
+        /* I the detection matches a target, print its pose. */
+        if (j > targetNum)
+        {
+            ROS_INFO("Object detected: %d\n", targets[j]);
+
+            /* Print object frame_id. */
+            outputFile << "Object: " << frames[targets[j]] << std::endl;
+
+            /* Print object orientation. */
+            outputFile  << "Orientation:" 
+                        << "\n  w = " << detection.pose.pose.pose.orientation.w 
+                        << "\n  x = " << detection.pose.pose.pose.orientation.x 
+                        << "\n  y = " << detection.pose.pose.pose.orientation.y
+                        << "\n  z = " << detection.pose.pose.pose.orientation.z 
+                        << std::endl;
+
+            /* Print object position. */
+            outputFile  << "Position:" 
+                        << "\n  x = " << detection.pose.pose.pose.position.x 
+                        << "\n  y = " << detection.pose.pose.pose.position.y 
+                        << "\n  z = " << detection.pose.pose.pose.position.z 
+                        << std::endl;
+
+            /* Print object separator. */
+            outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
+        }
     }
 }

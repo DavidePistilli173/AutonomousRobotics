@@ -10,7 +10,9 @@ class Task1
     public:
         Task1();
 
+        /* Initialise the ros node and target list. */
         bool init(int argc, char** argv);
+        /* Run the target detection. */
         void run();
 
         /* Maximum number of objects. */
@@ -28,11 +30,14 @@ class Task1
         static const std::string frames[N];
 
     private:
-        /* Requires as parameter a ConstPtr of the appropriate type. */
+        /* Callback for subscription to topic TOPIC_NAME. */
         static void printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg);
 
+        /* Objects for which we want to print the pose. */
         static int targets[N];
+        /* Number of targets. */
         static int targetNum;
+        /* Output file stream. */
         static std::ofstream outputFile;
 };
 
