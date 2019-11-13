@@ -22,25 +22,7 @@ class Task1
         static constexpr char NODE_NAME[] = "hw1_task1";
 
         /* Frame ids. */
-        const std::string frames[N] = 
-        {
-            "red_cube_0",
-            "red_cube_1",
-            "red_cube_2",
-            "red_cube_3",
-            "yellow_cyl_0",
-            "yellow_cyl_1",
-            "green_prism_0",
-            "green_prism_1",
-            "green_prism_2",
-            "blue_cube_0",
-            "blue_cube_1",
-            "blue_cube_2",
-            "blue_cube_3",
-            "red_prism_0",
-            "red_prism_1",
-            "red_prism_2"
-        };
+        static const std::string frames[N];
 
     private:
         /* Requires as parameter a ConstPtr of the appropriate type. */

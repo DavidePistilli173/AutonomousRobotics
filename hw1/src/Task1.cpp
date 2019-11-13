@@ -2,9 +2,28 @@
 
 #include <ros/ros.h>
 
-/* Static variables definition. */
+/* Definitions of static variables. */
 int Task1::targets[Task1::N];
 int Task1::targetNum = 0;
+const std::string Task1::frames[N] =
+    {
+        "red_cube_0",
+        "red_cube_1",
+        "red_cube_2",
+        "red_cube_3",
+        "yellow_cyl_0",
+        "yellow_cyl_1",
+        "green_prism_0",
+        "green_prism_1",
+        "green_prism_2",
+        "blue_cube_0",
+        "blue_cube_1",
+        "blue_cube_2",
+        "blue_cube_3",
+        "red_prism_0",
+        "red_prism_1",
+        "red_prism_2"
+    };
 
 Task1::Task1()
 {}
