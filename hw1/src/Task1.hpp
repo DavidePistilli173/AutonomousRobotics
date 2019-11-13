@@ -1,6 +1,7 @@
 #ifndef LAB_TASK1_H
 #define LAB_TASK1_H
 
+#include <fstream>
 #include <string>
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 
@@ -10,7 +11,7 @@ class Task1
         Task1();
 
         bool init(int argc, char** argv);
-        void run() const;
+        void run();
 
         /* Maximum number of objects. */
         static constexpr int N = 16;
@@ -20,6 +21,8 @@ class Task1
         static constexpr char TOPIC_NAME[] = "tag_detections";
         /* Current node name. */
         static constexpr char NODE_NAME[] = "hw1_task1";
+        /* Output file name. */
+        static constexpr char OF_NAME[] = "poses.txt";
 
         /* Frame ids. */
         static const std::string frames[N];
@@ -30,6 +33,7 @@ class Task1
 
         static int targets[N];
         static int targetNum;
+        static std::ofstream outputFile;
 };
 
 #endif

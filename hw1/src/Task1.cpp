@@ -5,6 +5,8 @@
 /* Definitions of static variables. */
 int Task1::targets[Task1::N];
 int Task1::targetNum = 0;
+std::ofstream Task1::outputFile(Task1::OF_NAME);
+
 const std::string Task1::frames[N] =
     {
         "red_cube_0",
@@ -66,7 +68,7 @@ bool Task1::init(int argc, char** argv)
     return true;
 }
 
-void Task1::run() const
+void Task1::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic tag_detections. */
@@ -77,5 +79,21 @@ void Task1::run() const
 /* Requires as parameter a ConstPtr of the appropriate type. */
 void Task1::printPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg)
 {
-    ROS_INFO("Message received: %f\n", msg->pose.pose.position.x);
+    /* Check whether msg is the pose of a target object. */
+    int i = 0;
+    while (i < targetNum && stoi(msg->header.frame_id) != targets[i])
+    {
+        ++i;
+    }
+    /* Print the pose of the object if it is a target. */
+    if (i < targetNum)
+    {
+        /* Print object orientation. */
+        outputFile  << "Orientation:\n" << "  w = " << msg->pose.pose.orientation.w << "\n  x = "
+                    << msg->pose.pose.orientation.x << "\n  y = " << msg->pose.pose.orientation.y
+                    << "\n  z = " << msg->pose.pose.orientation.z << std::endl;
+        /* Print object position. */
+        outputFile  << "Position:\n" << "  x = " << msg->pose.pose.position.x << "\n  y = "
+                    << msg->pose.pose.position.y << "\n  z = " << msg->pose.pose.position.z << std::endl;
+    }
 }
