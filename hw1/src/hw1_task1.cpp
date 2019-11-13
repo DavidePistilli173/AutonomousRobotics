@@ -15,6 +15,10 @@ void printPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg)
 constexpr int N = 16;
 /* Queue length for ROS messages. */
 constexpr int Q_LEN = 1000;
+/* Topic name. */
+constexpr char* TOPIC_NAME = "tag_detections";
+/* Current node name. */
+constexpr char* NODE_NAME = "hw1_task1";
 
 /* Frame ids. */
 const std::string frames[N] = 
@@ -40,7 +44,7 @@ const std::string frames[N] =
 int main(int argc, char** argv)
 {
     /* Node init. */
-    ros::init(argc, argv, "hw1_task1");
+    ros::init(argc, argv, NODE_NAME);
 
     /* Argument number check. */
     if (argc > N+1)
@@ -70,7 +74,7 @@ int main(int argc, char** argv)
 
     ros::NodeHandle n;
     /* Subscribe to topic tag_detections. */
-    ros::Subscriber sub = n.subscribe("tag_detections", Q_LEN, printPose);
+    ros::Subscriber sub = n.subscribe(TOPIC_NAME, Q_LEN, printPose);
     ros::spin();
     return 0;
 }
