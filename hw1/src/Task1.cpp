@@ -41,12 +41,12 @@ bool Task1::init(int argc, char** argv)
     /* Argument number check. */
     if (argc > N+1)
     {
-        ROS_INFO("Too many arguments.\n");
+        ROS_ERROR("Too many arguments.");
         return false;
     }
     if (argc == 1)
     {
-        ROS_INFO("Too few arguments.\n");
+        ROS_ERROR("Too few arguments.");
         return false;
     }
 
@@ -62,7 +62,7 @@ bool Task1::init(int argc, char** argv)
         /* If the frame_id is wrong, exit. */
         if (id == N)
         {
-            ROS_INFO("Unknown frame_id\n");
+            ROS_ERROR("Unknown frame_id");
             return false;
         }
         targets[i-1] = id;
@@ -82,18 +82,19 @@ void Task1::run()
 void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
 {
     /* Loop through all detections. */
-    for (auto &detection : msg->detections)
+    for (const auto &detection : msg->detections)
     {
         int j = 0;
         /* If the detection does not match a target, move on. */
         while (j < targetNum && detection.id[0] != targets[j])
         {
+            ROS_INFO("Detection mismatch: detection id: %d; target id: %d;", detection.id[0], targets[j]);
             ++j;
         }
         /* I the detection matches a target, print its pose. */
-        if (j > targetNum)
+        if (j < targetNum)
         {
-            ROS_INFO("Object detected: %d\n", targets[j]);
+            ROS_INFO("Object detected: %d", targets[j]);
 
             /* Print object frame_id. */
             outputFile << "Object: " << frames[targets[j]] << std::endl;
