@@ -62,7 +62,7 @@ bool Task1::init(int argc, char** argv)
         /* If the frame_id is wrong, exit. */
         if (id == N)
         {
-            ROS_ERROR("Unknown frame_id");
+            ROS_ERROR("Unknown frame_id: %s", argv[i]);
             return false;
         }
         targets[i-1] = id;
