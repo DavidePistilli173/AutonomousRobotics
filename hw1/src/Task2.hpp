@@ -1,3 +1,6 @@
+#ifndef LAB_TASK2_H
+#define LAB_TASK2_H
+
 #include <pcl/PCLPointCloud2.h>
 #include <string>
 
@@ -35,3 +38,5 @@ class Task2
     private:
         HW_PointCloud _objects[MESH_TYPES];
 };
+
+#endif
