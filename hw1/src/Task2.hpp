@@ -33,7 +33,7 @@ class Task2
         /* Current node name. */
         static constexpr char NODE_NAME[] = "hw1_task2";
         /* Mesh files. */
-        static constexpr char CUBE_PATH[] = "/home/cjm036653/Robotics-WS/src/Lab/hw1/meshes/cube.obj";
+        static const std::string CUBE_PATH;
 
     private:
         HW_PointCloud _objects[MESH_TYPES];
