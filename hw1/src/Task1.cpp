@@ -95,6 +95,12 @@ void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
         if (j < targetNum)
         {
             ROS_INFO("Object detected: %d", targets[j]);
+            
+            if (!outputFile.is_open())
+            {
+                ROS_ERROR("File not found.");
+                return;
+            }
 
             /* Print object frame_id. */
             outputFile << "Object: " << frames[targets[j]] << std::endl;
