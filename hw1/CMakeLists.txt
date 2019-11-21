@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   apriltag_ros
   pcl_ros
 )
+find_package(PCL 1.8 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -128,7 +129,7 @@ add_executable(hw1_task1 src/hw1_task1.cpp src/Task1.cpp)
 add_executable(hw1_task2 src/hw1_task2.cpp src/Task2.cpp)
 
 target_link_libraries(hw1_task1 ${catkin_LIBRARIES})
-target_link_libraries(hw1_task2 ${catkin_LIBRARIES})
+target_link_libraries(hw1_task2 ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

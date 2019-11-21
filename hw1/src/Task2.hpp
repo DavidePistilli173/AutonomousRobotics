@@ -1,13 +1,16 @@
 #ifndef LAB_TASK2_H
 #define LAB_TASK2_H
 
-#include <pcl/PCLPointCloud2.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <string>
 
-struct HW_PointCloud
+enum class MESH
 {
-    std::string name;
-    pcl::PCLPointCloud2 pc; 
+    CUBE,
+    HEX,
+    PRISM
 };
 
 class Task2
@@ -29,14 +32,17 @@ class Task2
         /* Queue length for ROS messages. */
         static constexpr int Q_LEN = 1000;
         /* Topic name. */
-        static constexpr char TOPIC_NAME[] = "/camera/depth_registered/points";
+        static const char TOPIC_NAME[];
         /* Current node name. */
-        static constexpr char NODE_NAME[] = "hw1_task2";
+        static const char NODE_NAME[];
         /* Mesh files. */
-        static const std::string CUBE_PATH;
+        static const std::string PATHS[MESH_TYPES];
 
     private:
-        HW_PointCloud _objects[MESH_TYPES];
+        pcl::PointCloud<pcl::PointXYZ>::Ptr _objects[MESH_TYPES];
+
+        static void _readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg);
+
 };
 
 #endif
