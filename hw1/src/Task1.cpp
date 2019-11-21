@@ -6,6 +6,7 @@
 int Task1::targets[Task1::N];
 int Task1::targetNum = 0;
 std::ofstream Task1::outputFile(Task1::OF_NAME);
+bool Task1::received = false;
 
 const std::string Task1::frames[N] =
     {
@@ -68,6 +69,14 @@ bool Task1::init(int argc, char** argv)
         targets[i-1] = id;
     }
     targetNum = i;
+
+    /* Check if the file is open. */        
+    if (!outputFile.is_open())
+    {
+        ROS_ERROR("File not found.");
+        return false;
+    }
+
     return true;
 }
 
@@ -76,11 +85,18 @@ void Task1::run()
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
     ros::Subscriber sub = n.subscribe(TOPIC_NAME, Q_LEN, printPose);
-    ros::spin();
+    /* Loop until a message is received. */
+    while (!received)
+    {
+        ros::spinOnce();
+    }
 }
 
 void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
 {
+    /* A message has been received.*/
+    received = true;
+
     /* Loop through all detections. */
     for (const auto &detection : msg->detections)
     {
@@ -88,19 +104,14 @@ void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
         /* If the detection does not match a target, move on. */
         while (j < targetNum && detection.id[0] != targets[j])
         {
-            ROS_INFO("Detection mismatch: detection id: %d; target id: %d;", detection.id[0], targets[j]);
+            ROS_INFO("Detection mismatch: detection id = %d; target id = %d;", detection.id[0], targets[j]);
             ++j;
         }
-        /* I the detection matches a target, print its pose. */
+
+        /* If the detection matches a target, print its pose. */
         if (j < targetNum)
         {
             ROS_INFO("Object detected: %d", targets[j]);
-            
-            if (!outputFile.is_open())
-            {
-                ROS_ERROR("File not found.");
-                return;
-            }
 
             /* Print object frame_id. */
             outputFile << "Object: " << frames[targets[j]] << std::endl;
@@ -122,6 +133,8 @@ void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
 
             /* Print object separator. */
             outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
+
+            ROS_INFO("Data written to file (object %d)", targets[j]);
         }
     }
 }

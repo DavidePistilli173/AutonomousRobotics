@@ -39,6 +39,8 @@ class Task1
         static int targetNum;
         /* Output file stream. */
         static std::ofstream outputFile;
+        /* Message status. */
+        static bool received;
 };
 
 #endif
