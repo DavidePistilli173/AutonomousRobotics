@@ -1,0 +1,5 @@
+<launch>
+    <arg name="path" value="$(find hw1)"/>
+    <arg name="o1"/>
+    <node name="hw1_task1" pkg="hw1" type="hw1_task1" args="$(arg path) $(arg o1)"/>
+</launch>

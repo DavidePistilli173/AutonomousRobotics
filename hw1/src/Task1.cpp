@@ -5,7 +5,7 @@
 /* Definitions of static variables. */
 int Task1::targets[Task1::N];
 int Task1::targetNum = 0;
-std::ofstream Task1::outputFile(Task1::OF_NAME);
+std::ofstream Task1::outputFile;
 bool Task1::received = false;
 
 const std::string Task1::frames[N] =
@@ -27,6 +27,7 @@ const std::string Task1::frames[N] =
         "red_prism_1",
         "red_prism_2"
     };
+const std::string Task1::OF_NAME = "/poses.txt";
 
 
 /* Definitions of methods from class Task1. */
@@ -40,7 +41,7 @@ bool Task1::init(int argc, char** argv)
     ros::init(argc, argv, NODE_NAME);
 
     /* Argument number check. */
-    if (argc > N+1)
+    if (argc > N+ARGC_OFFSET)
     {
         ROS_ERROR("Too many arguments.");
         return false;
@@ -53,7 +54,7 @@ bool Task1::init(int argc, char** argv)
 
     /* Link each frame_id to its id. */
     int i;
-    for (i = 1; i < argc; ++i)
+    for (i = ARGC_OFFSET; i < argc; ++i)
     {
         int id = 0;
         while (id < N && frames[id] != argv[i])
@@ -70,10 +71,12 @@ bool Task1::init(int argc, char** argv)
     }
     targetNum = i;
 
+    std::string fileName = argv[1] + OF_NAME;
+    outputFile.open(fileName);
     /* Check if the file is open. */        
     if (!outputFile.is_open())
     {
-        ROS_ERROR("File not found.");
+        ROS_ERROR("Error while opening output file %s.", fileName.c_str());
         return false;
     }
 

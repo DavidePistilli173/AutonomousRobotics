@@ -1,5 +1,5 @@
 <launch>
     <arg name="path" value="$(find hw1)"/>
-    <arg name="object1"/>
-    <node name="hw1_task2" pkg="hw1" type="hw1_task2" args="$(arg path) $(arg object1)"/>
+    <arg name="o1"/>
+    <node name="hw1_task2" pkg="hw1" type="hw1_task2" args="$(arg path) $(arg o1)"/>
 </launch>

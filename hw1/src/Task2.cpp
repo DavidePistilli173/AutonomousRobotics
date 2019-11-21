@@ -28,7 +28,7 @@ bool Task2::init(int argc, char** argv)
 
     /* Load point clouds. */
     pcl::PointCloud<pcl::PointXYZ> tempCloud;
-    pcl::io::loadPCDFile(std::string(argv[1] + CUBE_PATH), tempCloud);
+    pcl::io::loadPCDFile(argv[1] + CUBE_PATH, tempCloud);
 
     return true;
 }
