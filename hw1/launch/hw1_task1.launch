@@ -1,5 +1,20 @@
 <launch>
     <arg name="path" value="$(find hw1)"/>
     <arg name="o1"/>
-    <node name="hw1_task1" pkg="hw1" type="hw1_task1" args="$(arg path) $(arg o1)"/>
+    <arg name="o2" default=""/>
+    <arg name="o3" default=""/>
+    <arg name="o4" default=""/>
+    <arg name="o5" default=""/>
+    <arg name="o6" default=""/>
+    <arg name="o7" default=""/>
+    <arg name="o8" default=""/>
+    <arg name="o9" default=""/>
+    <arg name="o10" default=""/>
+    <arg name="o11" default=""/>
+    <arg name="o12" default=""/>
+    <arg name="o13" default=""/>
+    <arg name="o14" default=""/>
+    <arg name="o15" default=""/>
+    <node name="hw1_task1" pkg="hw1" type="hw1_task1" args="$(arg path) $(arg o1) $(arg o2) $(arg o3) $(arg o4) $(arg o5) $(arg o6)
+     $(arg o7) $(arg o8) $(arg o9) $(arg o10) $(arg o11) $(arg o12) $(arg o13) $(arg o14) $(arg o15)"/>
 </launch>
