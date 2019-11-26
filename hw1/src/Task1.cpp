@@ -3,10 +3,10 @@
 #include <ros/ros.h>
 
 /* Definitions of static variables. */
-int Task1::targets[Task1::N];
-int Task1::targetNum = 0;
-std::ofstream Task1::outputFile;
-bool Task1::received = false;
+int Task1::_targets[Task1::N];
+int Task1::_targetNum = 0;
+std::ofstream Task1::_outputFile;
+bool Task1::_received = false;
 
 const std::string Task1::frames[N] =
     {
@@ -67,14 +67,14 @@ bool Task1::init(int argc, char** argv)
             ROS_ERROR("Unknown frame_id: %s", argv[i]);
             return false;
         }
-        targets[i-1] = id;
+        _targets[i-1] = id;
     }
-    targetNum = i;
+    _targetNum = i;
 
     std::string fileName = argv[1] + OF_NAME;
-    outputFile.open(fileName);
+    _outputFile.open(fileName);
     /* Check if the file is open. */        
-    if (!outputFile.is_open())
+    if (!_outputFile.is_open())
     {
         ROS_ERROR("Error while opening output file %s.", fileName.c_str());
         return false;
@@ -87,40 +87,40 @@ void Task1::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
-    ros::Subscriber sub = n.subscribe(TOPIC_NAME, Q_LEN, printPose);
+    ros::Subscriber sub = n.subscribe(TOPIC_NAME, Q_LEN, _printPose);
     /* Loop until a message is received. */
-    while (!received)
+    while (!_received)
     {
         ros::spinOnce();
     }
 }
 
-void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
+void Task1::_printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
 {
     /* A message has been received.*/
-    received = true;
+    _received = true;
 
     /* Loop through all detections. */
     for (const auto &detection : msg->detections)
     {
         int j = 0;
         /* If the detection does not match a target, move on. */
-        while (j < targetNum && detection.id[0] != targets[j])
+        while (j < _targetNum && detection.id[0] != _targets[j])
         {
-            ROS_INFO("Detection mismatch: detection id = %d; target id = %d;", detection.id[0], targets[j]);
+            ROS_INFO("Detection mismatch: detection id = %d; target id = %d;", detection.id[0], _targets[j]);
             ++j;
         }
 
         /* If the detection matches a target, print its pose. */
-        if (j < targetNum)
+        if (j < _targetNum)
         {
-            ROS_INFO("Object detected: %d", targets[j]);
+            ROS_INFO("Object detected: %d", _targets[j]);
 
             /* Print object frame_id. */
-            outputFile << "Object: " << frames[targets[j]] << std::endl;
+            _outputFile << "Object: " << frames[_targets[j]] << std::endl;
 
             /* Print object orientation. */
-            outputFile  << "Orientation:" 
+            _outputFile  << "Orientation:" 
                         << "\n  w = " << detection.pose.pose.pose.orientation.w 
                         << "\n  x = " << detection.pose.pose.pose.orientation.x 
                         << "\n  y = " << detection.pose.pose.pose.orientation.y
@@ -128,16 +128,16 @@ void Task1::printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg)
                         << std::endl;
 
             /* Print object position. */
-            outputFile  << "Position:" 
+            _outputFile  << "Position:" 
                         << "\n  x = " << detection.pose.pose.pose.position.x 
                         << "\n  y = " << detection.pose.pose.pose.position.y 
                         << "\n  z = " << detection.pose.pose.pose.position.z 
                         << std::endl;
 
             /* Print object separator. */
-            outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
+            _outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
 
-            ROS_INFO("Data written to file (object %d)", targets[j]);
+            ROS_INFO("Data written to file (object %d)", _targets[j]);
         }
     }
 }

@@ -33,16 +33,16 @@ class Task1
 
     private:
         /* Callback for subscription to topic TOPIC_NAME. */
-        static void printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg);
+        static void _printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg);
 
         /* Objects for which we want to print the pose. */
-        static int targets[N];
+        static int _targets[N];
         /* Number of targets. */
-        static int targetNum;
+        static int _targetNum;
         /* Output file stream. */
-        static std::ofstream outputFile;
+        static std::ofstream _outputFile;
         /* Message status. */
-        static bool received;
+        static bool _received;
 };
 
 #endif
