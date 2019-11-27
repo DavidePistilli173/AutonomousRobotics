@@ -16,5 +16,5 @@
     <arg name="o14" default=""/>
     <arg name="o15" default=""/>
     <node name="hw1_task1" pkg="hw1" type="hw1_task1" args="$(arg path) $(arg o1) $(arg o2) $(arg o3) $(arg o4) $(arg o5) $(arg o6)
-     $(arg o7) $(arg o8) $(arg o9) $(arg o10) $(arg o11) $(arg o12) $(arg o13) $(arg o14) $(arg o15)"/>
+     $(arg o7) $(arg o8) $(arg o9) $(arg o10) $(arg o11) $(arg o12) $(arg o13) $(arg o14) $(arg o15)" output="screen"/>
 </launch>
