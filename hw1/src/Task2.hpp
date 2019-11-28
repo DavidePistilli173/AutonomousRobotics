@@ -39,7 +39,7 @@ class Task2
         static const std::string PATHS[MESH_TYPES];
 
     private:
-        pcl::PointCloud<pcl::PointXYZ>::Ptr _objects[MESH_TYPES];
+        static pcl::PointCloud<pcl::PointXYZ>::Ptr _objects[MESH_TYPES];
 
         static void _readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg);
 
