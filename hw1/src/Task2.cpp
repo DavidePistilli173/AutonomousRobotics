@@ -24,8 +24,8 @@ const std::string Task2::PATHS[MESH_TYPES] =
 };
 
 const char Task2::NODE_NAME[] = "hw1_task2";
-const char Task2::TOPIC_NAME[] = "/camera/hd/points";
-std::string temp = "/camera/depth_registered/points";
+const char Task2::TOPIC_NAME[] = "/camera/depth_registered/points"; //Active topic
+std::string temp = "/camera/hd/points"; //Alternative topic
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr Task2::_objects[MESH_TYPES];
 
@@ -84,6 +84,7 @@ void Task2::run()
 
 void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
+    /*
     tf::TransformListener listener;
     tf::StampedTransform transform;
     try
@@ -97,7 +98,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         ROS_ERROR("%s",ex.what());
         ros::Duration(1.0).sleep();
     }
-
+    */
     
 
     /* Convert msg to PointCloud. */
@@ -107,22 +108,22 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     pcl::PassThrough<pcl::PointXYZRGB> tableFilter;
     
     tableFilter.setInputCloud(msgPointCloud);
-    //tableFilter.setFilterLimits(0.0, 1.985);
-    tableFilter.setFilterLimits(0.0, 1.985);
+    tableFilter.setFilterLimits(0.0, 1.985); //Simulation
+    //tableFilter.setFilterLimits(0.0, 1.985); //Real
     tableFilter.setFilterFieldName("z");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud1(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud1);
 
     tableFilter.setInputCloud(outputCloud1);
-    //tableFilter.setFilterLimits(-0.45, 0.3);
-    tableFilter.setFilterLimits(0.0, 0.5);
+    tableFilter.setFilterLimits(-0.45, 0.3); //Simulation
+    //tableFilter.setFilterLimits(0.0, 0.5); //Real
     tableFilter.setFilterFieldName("y");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud2(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud2);
 
     tableFilter.setInputCloud(outputCloud2);
-    //tableFilter.setFilterLimits(-0.6, 0.55);
-    tableFilter.setFilterLimits(-0.6, 0.55);
+    tableFilter.setFilterLimits(-0.6, 0.55); //Simulation
+    //tableFilter.setFilterLimits(-0.6, 0.55); //Real
     tableFilter.setFilterFieldName("x");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud3(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud3);
@@ -199,39 +200,86 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     }
 
 
-    
+    /*
     pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
     viewer.showCloud(completeCloud);
     while (!viewer.wasStopped ())
     {
     }
+    */
     
-    /*
     std::vector<pcl::PointCloud<pcl::PointXYZHSV>::Ptr> detections;
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> detectionsNoHSV;
 
-    int j = 0;
+    j = 0;
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
     {
         detections.push_back(pcl::PointCloud<pcl::PointXYZHSV>::Ptr(new pcl::PointCloud<pcl::PointXYZHSV>));
+        detectionsNoHSV.push_back(pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>));
 
         for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
         {
             detections[j]->points.push_back (hsvCloud->points[*pit]);
+            pcl::PointXYZ point;
+            point.x = hsvCloud->points[*pit].x;
+            point.y = hsvCloud->points[*pit].y;
+            point.z = hsvCloud->points[*pit].z;
+            detectionsNoHSV[j]->points.push_back(point);
         }
         ++j;
     }
     
 
-    for (const auto &detection : detections)
+    for (int i = 0; i < detections.size(); ++i)
     {
-        for (const auto &point : hsvCloud->points)
+        double averageHue = 0.0;
+        for (const auto &point : detections[i]->points)
         {
-
+            averageHue += point.h;
+        }
+        averageHue /= detections[i]->points.size();
+        
+        std::vector<DetectionObject> detectionChoices;
+        if (averageHue >= 45 && averageHue <= 70)
+        {
+            detectionChoices.push_back({Mesh::HEX, Colour::YELLOW});
+            //Esagono
+        }
+        else if (averageHue >= 70 && averageHue <= 170)
+        {
+            detectionChoices.push_back({Mesh::PRISM, Colour::GREEN});
+            //Prisma verde
+        }
+        else if (averageHue >= 170 && averageHue <= 270)
+        {
+            detectionChoices.push_back({Mesh::CUBE, Colour::BLUE});
+            //Cubo blu
+        }
+        else
+        {
+            detectionChoices.push_back({Mesh::CUBE, Colour::RED});
+            detectionChoices.push_back({Mesh::PRISM, Colour::RED});
+            //Cubo o prisma rossi
         }
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr lastCloud (new pcl::PointCloud<pcl::PointXYZ>);
-        int j = 0;
-        //double min = 5;
+        double minScore = 5;
+        Mesh matchingMesh;
+        for (const auto &reference : detectionChoices)
+        {
+            pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+            icp.setInputSource(detectionsNoHSV[i]);
+            icp.setInputTarget(_objects[static_cast<int>(reference.mesh)]);
+
+            icp.align(*lastCloud);
+            if (icp.getFitnessScore() < minScore)
+            {
+                 minScore = icp.getFitnessScore();
+                 matchingMesh = reference.mesh;
+            }
+        }
+
+        /*
         for (const auto &reference : _objects)
         {
             pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -244,11 +292,12 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             std::cout << "Source mesh: " << PATHS[j].c_str() << "; Match: " << icp.getFitnessScore() << std::endl;
             ++j;
         }
+        */
+        std::cout << "Source mesh: " << PATHS[static_cast<int>(matchingMesh)].c_str() << "; Match: " << minScore << std::endl;
         pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
-        viewer.showCloud(lastCloud);
+        viewer.showCloud(_objects[static_cast<int>(matchingMesh)]);
         while (!viewer.wasStopped ())
         {
         }
     }
-    */
 }

@@ -6,11 +6,25 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <string>
 
-enum class MESH
+enum class Mesh
 {
     CUBE,
     HEX,
     PRISM
+};
+
+enum class Colour
+{
+    RED,
+    GREEN,
+    BLUE,
+    YELLOW
+};
+
+struct DetectionObject
+{
+    Mesh mesh;
+    Colour colour;
 };
 
 class Task2
