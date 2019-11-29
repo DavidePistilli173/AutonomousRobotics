@@ -161,7 +161,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     */
 
     std::stringstream output;
-    output << "Vector size: " << cluster_indices.size() << std::endl;
+    output << "Clusters: " << cluster_indices.size() << std::endl;
     ROS_INFO("%s", output.str().c_str());
 
     int colours[] = 
@@ -188,9 +188,9 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
         {
             pcl::PointXYZRGB point;
-            point.x = cloudNoRGB->points[*pit].x;
-            point.y = cloudNoRGB->points[*pit].y;
-            point.z = cloudNoRGB->points[*pit].z;
+            point.x = hsvCloud->points[*pit].x;
+            point.y = hsvCloud->points[*pit].y;
+            point.z = hsvCloud->points[*pit].z;
             point.r = colours[j];
             point.g = colours[j+1];
             point.b = colours[j+2];
@@ -198,8 +198,6 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         }
         j += 3;
     }
-
-
     /*
     pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
     viewer.showCloud(completeCloud);
@@ -219,7 +217,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
         for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
         {
-            detections[j]->points.push_back (hsvCloud->points[*pit]);
+            detections[j]->points.push_back(hsvCloud->points[*pit]);
             pcl::PointXYZ point;
             point.x = hsvCloud->points[*pit].x;
             point.y = hsvCloud->points[*pit].y;
@@ -232,12 +230,15 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
     for (int i = 0; i < detections.size(); ++i)
     {
+        /*
+        ROS_INFO("Detection %d", i);
         double averageHue = 0.0;
         for (const auto &point : detections[i]->points)
         {
             averageHue += point.h;
         }
         averageHue /= detections[i]->points.size();
+        ROS_INFO("Average hue: %f", averageHue);
         
         std::vector<DetectionObject> detectionChoices;
         if (averageHue >= 45 && averageHue <= 70)
@@ -278,26 +279,29 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
                  matchingMesh = reference.mesh;
             }
         }
+        */
 
-        /*
+        j = 0;
         for (const auto &reference : _objects)
         {
             pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-            icp.setInputSource(detection);
+            icp.setInputSource(detectionsNoHSV[i]);
             icp.setInputTarget(reference);
             
-
+            pcl::PointCloud<pcl::PointXYZ>::Ptr lastCloud (new pcl::PointCloud<pcl::PointXYZ>);
             icp.align(*lastCloud);
             std::cout << "Has converged? " << icp.hasConverged() << std::endl;
             std::cout << "Source mesh: " << PATHS[j].c_str() << "; Match: " << icp.getFitnessScore() << std::endl;
             ++j;
         }
-        */
+        
+        /*
         std::cout << "Source mesh: " << PATHS[static_cast<int>(matchingMesh)].c_str() << "; Match: " << minScore << std::endl;
         pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
         viewer.showCloud(_objects[static_cast<int>(matchingMesh)]);
         while (!viewer.wasStopped ())
         {
         }
+        */
     }
 }
