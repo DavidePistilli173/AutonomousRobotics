@@ -14,13 +14,14 @@
 #include <pcl/registration/icp.h>
 #include <pcl/point_types_conversion.h>
 #include <tf/transform_listener.h>
+#include <pcl/features/normal_3d_omp.h>
 
 /* Definition of Task2 static variables. */
 const std::string Task2::PATHS[MESH_TYPES] = 
 {
     "/meshes/cube.pcd",
     "/meshes/hexagon.pcd",
-    "/meshes/prism.pcd"
+    "/meshes/prism2.pcd"
 };
 
 const char Task2::NODE_NAME[] = "hw1_task2";
@@ -198,6 +199,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         }
         j += 3;
     }
+
     /*
     pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
     viewer.showCloud(completeCloud);
@@ -205,6 +207,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     {
     }
     */
+    
     
     std::vector<pcl::PointCloud<pcl::PointXYZHSV>::Ptr> detections;
     std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> detectionsNoHSV;
@@ -231,56 +234,124 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     for (int i = 0; i < detections.size(); ++i)
     {
         /*
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr testCloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+        for (const auto &point :detections[i]->points)
+        {
+            pcl::PointXYZRGB testPoint;
+            testPoint.x = point.x;
+            testPoint.y = point.y;
+            testPoint.z = point.z;
+            if (point.h == 0) 
+            {
+                testPoint.r = 255;
+                testPoint.g = 0;
+                testPoint.b = 0;
+                ROS_INFO("Bad point: (%f, %f, %f)", point.x, point.y, point.z);
+            }
+            else if (point.h == 60)
+            {
+                testPoint.r = 0;
+                testPoint.g = 255;
+                testPoint.b = 0;
+            }
+            else
+            {
+                testPoint.r = 0;
+                testPoint.g = 0;
+                testPoint.b = 255;
+            }
+            testCloud->points.push_back(testPoint);
+        }
+        pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
+        viewer.showCloud(testCloud);
+        while (!viewer.wasStopped ())
+        {
+        }
+        */
+
         ROS_INFO("Detection %d", i);
-        double averageHue = 0.0;
+        float averageHue = 0.0;
+        int pointCount = 0;
         for (const auto &point : detections[i]->points)
         {
-            averageHue += point.h;
+            if (point.s > 0.1)
+            { 
+                averageHue += point.h;
+                ++pointCount;
+            }
         }
-        averageHue /= detections[i]->points.size();
+        // TODO: Check divisione per 0
+        ROS_INFO("Number of points: %d", detections[i]->points.size());
+        averageHue /= pointCount;
         ROS_INFO("Average hue: %f", averageHue);
         
         std::vector<DetectionObject> detectionChoices;
-        if (averageHue >= 45 && averageHue <= 70)
+        if (averageHue > 30 && averageHue <= 90)
         {
             detectionChoices.push_back({Mesh::HEX, Colour::YELLOW});
             //Esagono
         }
-        else if (averageHue >= 70 && averageHue <= 170)
+        else if (averageHue > 90 && averageHue <= 180)
         {
             detectionChoices.push_back({Mesh::PRISM, Colour::GREEN});
             //Prisma verde
         }
-        else if (averageHue >= 170 && averageHue <= 270)
+        else if (averageHue > 180 && averageHue <= 270)
         {
             detectionChoices.push_back({Mesh::CUBE, Colour::BLUE});
             //Cubo blu
         }
         else
         {
+            float maxHeight = 200;
+            for (const auto &point : detections[i]->points)
+            {
+                if (point.z < maxHeight) maxHeight = point.z;
+            }
+            if (maxHeight <= 1.9107) 
+            {
+                detectionChoices.push_back({Mesh::CUBE, Colour::RED});
+                ROS_INFO("CUBOOOOOO");
+            }
+            else 
+            {
+                detectionChoices.push_back({Mesh::PRISM, Colour::RED});
+                ROS_INFO("PRIMSAAAAA");
+            }
+
+            pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
+            viewer.showCloud(detectionsNoHSV[i]);
+            while (!viewer.wasStopped ())
+            {
+            }
+            /*
             detectionChoices.push_back({Mesh::CUBE, Colour::RED});
             detectionChoices.push_back({Mesh::PRISM, Colour::RED});
+            */
             //Cubo o prisma rossi
         }
 
+        /*
         pcl::PointCloud<pcl::PointXYZ>::Ptr lastCloud (new pcl::PointCloud<pcl::PointXYZ>);
+        float maxHeight = 0;
         double minScore = 5;
         Mesh matchingMesh;
         for (const auto &reference : detectionChoices)
         {
             pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-            icp.setInputSource(detectionsNoHSV[i]);
-            icp.setInputTarget(_objects[static_cast<int>(reference.mesh)]);
+            icp.setInputSource(_objects[static_cast<int>(reference.mesh)]);
+            icp.setInputTarget(detectionsNoHSV[i]);
 
             icp.align(*lastCloud);
             if (icp.getFitnessScore() < minScore)
             {
-                 minScore = icp.getFitnessScore();
-                 matchingMesh = reference.mesh;
+                minScore = icp.getFitnessScore();
+                matchingMesh = reference.mesh;
             }
         }
         */
-
+        
+        /*
         j = 0;
         for (const auto &reference : _objects)
         {
@@ -294,9 +365,12 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             std::cout << "Source mesh: " << PATHS[j].c_str() << "; Match: " << icp.getFitnessScore() << std::endl;
             ++j;
         }
+        */
         
+        
+        /*std::cout << "Source mesh: " << PATHS[static_cast<int>(matchingMesh)].c_str() << "; Match: " << minScore << std::endl;*/
+
         /*
-        std::cout << "Source mesh: " << PATHS[static_cast<int>(matchingMesh)].c_str() << "; Match: " << minScore << std::endl;
         pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
         viewer.showCloud(_objects[static_cast<int>(matchingMesh)]);
         while (!viewer.wasStopped ())
