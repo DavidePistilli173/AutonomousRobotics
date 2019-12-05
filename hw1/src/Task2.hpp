@@ -5,6 +5,7 @@
 #include <pcl/point_types.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <string>
+#include <tf2_ros/transform_listener.h>
 
 enum class Mesh
 {
@@ -46,7 +47,8 @@ class Task2
         /* Queue length for ROS messages. */
         static constexpr int Q_LEN = 1000;
         /* Topic name. */
-        static const char TOPIC_NAME[];
+        static const char TOPIC_NAME_SIMULATION[];
+        static const char TOPIC_NAME_REAL[];
         /* Current node name. */
         static const char NODE_NAME[];
         /* Mesh files. */
@@ -54,6 +56,8 @@ class Task2
 
     private:
         static pcl::PointCloud<pcl::PointXYZ>::Ptr _objects[MESH_TYPES];
+        static tf2_ros::Buffer tfBuffer;
+        static geometry_msgs::TransformStamped transformStamped; 
 
         static void _readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg);
 

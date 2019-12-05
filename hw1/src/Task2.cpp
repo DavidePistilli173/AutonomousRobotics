@@ -1,5 +1,6 @@
 #include "Task2.hpp"
 
+#include <tgmath.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/conversions.h>
 #include <pcl/io/pcd_io.h>
@@ -15,6 +16,9 @@
 #include <pcl/point_types_conversion.h>
 #include <tf/transform_listener.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/registration/registration.h>
+#include <pcl_ros/transforms.h>
+//#include <tf/transform_listener.h>
 
 /* Definition of Task2 static variables. */
 const std::string Task2::PATHS[MESH_TYPES] = 
@@ -25,10 +29,12 @@ const std::string Task2::PATHS[MESH_TYPES] =
 };
 
 const char Task2::NODE_NAME[] = "hw1_task2";
-const char Task2::TOPIC_NAME[] = "/camera/depth_registered/points"; //Active topic
-std::string temp = "/camera/hd/points"; //Alternative topic
+const char Task2::TOPIC_NAME_SIMULATION[] = "/camera/depth_registered/points"; //Alternative topic
+const char Task2::TOPIC_NAME_REAL[] = "/camera/hd/points"; //Active topic
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr Task2::_objects[MESH_TYPES];
+tf2_ros::Buffer Task2::tfBuffer;
+geometry_msgs::TransformStamped Task2::transformStamped;
 
 Task2::Task2(){};
 
@@ -37,6 +43,7 @@ bool Task2::init(int argc, char** argv)
     /* Node init. */
     ros::init(argc, argv, NODE_NAME);
 
+    /* CHECKKK */
     /* Argument number check. */
     if (argc > N+2)
     {
@@ -78,37 +85,40 @@ void Task2::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
-    ros::Subscriber sub = n.subscribe(TOPIC_NAME, Q_LEN, _readKinectData);
-    /* Loop until a message is received. */
-    ros::spin();
+    ros::Subscriber sub = n.subscribe(TOPIC_NAME_REAL, Q_LEN, _readKinectData);
+
+    tf2_ros::TransformListener tfListener(tfBuffer);
+
+    while (ros::ok())
+    {
+        try
+        {
+            transformStamped = tfBuffer.lookupTransform("base_link", "camera_link", ros::Time(0));
+            ROS_INFO("Tf received.");
+        }
+        catch(tf2::TransformException &ex)
+        {
+            ROS_WARN("%s", ex.what());
+        }
+
+        ros::spinOnce();
+    }
 }
 
 void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
-    /*
-    tf::TransformListener listener;
-    tf::StampedTransform transform;
-    try
-    {
-        listener.lookupTransform("camera_link", "base_link", ros::Time(0), transform);
-        std::cout << "Frame id: " << transform.frame_id_ << std::endl;
-        std::cout << "Child frame id: " << transform.child_frame_id_ << std::endl;
-    }
-    catch (tf::TransformException &ex) 
-    {
-        ROS_ERROR("%s",ex.what());
-        ros::Duration(1.0).sleep();
-    }
-    */
-    
-
     /* Convert msg to PointCloud. */
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr msgPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*msg, *msgPointCloud);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
+    /* Transform point cloud coordinates from camera_link to base_link. */
+    pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
+
+    /* Point cloud filtering. */
     pcl::PassThrough<pcl::PointXYZRGB> tableFilter;
     
-    tableFilter.setInputCloud(msgPointCloud);
+    tableFilter.setInputCloud(transformedPointCloud);
     tableFilter.setFilterLimits(0.0, 1.985); //Simulation
     //tableFilter.setFilterLimits(0.0, 1.985); //Real
     tableFilter.setFilterFieldName("z");
@@ -285,24 +295,25 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         averageHue /= pointCount;
         ROS_INFO("Average hue: %f", averageHue);
         
-        std::vector<DetectionObject> detectionChoices;
+        DetectionObject detectionChoice;
         if (averageHue > 30 && averageHue <= 90)
         {
-            detectionChoices.push_back({Mesh::HEX, Colour::YELLOW});
+            detectionChoice = {Mesh::HEX, Colour::YELLOW};
             //Esagono
         }
         else if (averageHue > 90 && averageHue <= 180)
         {
-            detectionChoices.push_back({Mesh::PRISM, Colour::GREEN});
+            detectionChoice = {Mesh::PRISM, Colour::GREEN};
             //Prisma verde
         }
         else if (averageHue > 180 && averageHue <= 270)
         {
-            detectionChoices.push_back({Mesh::CUBE, Colour::BLUE});
+            detectionChoice = {Mesh::CUBE, Colour::BLUE};
             //Cubo blu
         }
         else
         {
+            //Cubo o prisma rossi
             float maxHeight = 200;
             for (const auto &point : detections[i]->points)
             {
@@ -310,26 +321,42 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             }
             if (maxHeight <= 1.9107) 
             {
-                detectionChoices.push_back({Mesh::CUBE, Colour::RED});
-                ROS_INFO("CUBOOOOOO");
+                detectionChoice = {Mesh::CUBE, Colour::RED};
             }
             else 
             {
-                detectionChoices.push_back({Mesh::PRISM, Colour::RED});
-                ROS_INFO("PRIMSAAAAA");
+                detectionChoice = {Mesh::PRISM, Colour::RED};
             }
-
-            pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
-            viewer.showCloud(detectionsNoHSV[i]);
-            while (!viewer.wasStopped ())
-            {
-            }
-            /*
-            detectionChoices.push_back({Mesh::CUBE, Colour::RED});
-            detectionChoices.push_back({Mesh::PRISM, Colour::RED});
-            */
-            //Cubo o prisma rossi
         }
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr lastCloud (new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+        icp.setInputSource(_objects[static_cast<int>(detectionChoice.mesh)]);
+        icp.setInputTarget(detectionsNoHSV[i]);
+        icp.align(*lastCloud);
+
+        Eigen::Matrix4f transformation = icp.getFinalTransformation();
+        float x = transformation(0,3);
+        float y = transformation(1,3);
+        float z = transformation(2,3);
+
+        std::cout << transformation(0,0) << std::endl;
+        float fiX = atan2(transformation(2,1), transformation(2,2));
+        float fiY = atan2(-transformation(2,0), sqrt(pow(transformation(2,1), 2) + pow(transformation(2,2), 2)));
+        float fiZ = atan2(transformation(1,0), transformation(0,0));
+
+        std::cout << "Angles: " << fiX << " " << fiY << " " << fiZ << std::endl;
+
+        tf::Matrix3x3 rotationMatrix;
+        rotationMatrix.setValue(transformation(0,0), transformation(0,1), transformation(0,2),
+                                transformation(1,0), transformation(1,1), transformation(1,2),
+                                transformation(2,0), transformation(2,1), transformation(2,2));
+        tf::Quaternion quat;
+        rotationMatrix.getRotation(quat);
+        std::cout << "Quaternion " << quat.getX() << " " << quat.getY() << " " << quat.getZ() << " " << quat.getW() << std::endl;
+
+        std::cout << transformation << std::endl;
+
 
         /*
         pcl::PointCloud<pcl::PointXYZ>::Ptr lastCloud (new pcl::PointCloud<pcl::PointXYZ>);
