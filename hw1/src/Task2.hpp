@@ -22,6 +22,24 @@ enum class Colour
     YELLOW
 };
 
+enum class Argument
+{
+    PROGRAM_NAME,
+    PATH,
+    SIMULATION,
+    ICP_FITNESS_EPSILON,
+    ICP_TRANSFORMATION_EPSILON,
+    ICP_MAX_CORRESPONDENCE_DISTANCE,
+    ICP_RANSAC_ITERATIONS,
+    ICP_RANSAC_INLIER_THRESHOLD,
+    ICP_TRANSLATION_THRESHOLD,
+    ICP_ROTATION_THRESHOLD,
+    ICP_ABSOLUTE_MSE,
+    ICP_MAX_ITERATIONS,
+    ICP_MAX_SIMILAR_ITERATIONS,
+    ICP_RELATIVE_MSE,
+};
+
 struct DetectionObject
 {
     Mesh mesh;
@@ -57,7 +75,19 @@ class Task2
     private:
         static pcl::PointCloud<pcl::PointXYZ>::Ptr _objects[MESH_TYPES];
         static tf2_ros::Buffer tfBuffer;
-        static geometry_msgs::TransformStamped transformStamped; 
+        static geometry_msgs::TransformStamped transformStamped;
+
+        static double _icp_fitness_epsilon;
+        static double _icp_transformation_epsilon;
+        static double _icp_correspondence_distance;
+        static int _icp_ransac_iterations;
+        static double _icp_inlier_threshold;
+        static double _icp_translation_threshold;
+        static double _icp_rotation_threshold;
+        static double _icp_absolute_mse;
+        static int _icp_max_iterations;
+        static int _icp_max_similar_iterations;
+        static double _icp_relative_mse;
 
         static void _readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg);
 

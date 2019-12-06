@@ -18,13 +18,12 @@
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/registration/registration.h>
 #include <pcl_ros/transforms.h>
-//#include <tf/transform_listener.h>
 
 /* Definition of Task2 static variables. */
 const std::string Task2::PATHS[MESH_TYPES] = 
 {
-    "/meshes/cube.pcd",
-    "/meshes/hexagon.pcd",
+    "/meshes/cube_face.pcd",
+    "/meshes/hexagon_face.pcd",
     "/meshes/prism2.pcd"
 };
 
@@ -36,6 +35,18 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr Task2::_objects[MESH_TYPES];
 tf2_ros::Buffer Task2::tfBuffer;
 geometry_msgs::TransformStamped Task2::transformStamped;
 
+double Task2::_icp_fitness_epsilon;
+double Task2::_icp_transformation_epsilon;
+double Task2::_icp_correspondence_distance;
+int Task2::_icp_ransac_iterations;
+double Task2::_icp_inlier_threshold;
+double Task2::_icp_translation_threshold;
+double Task2::_icp_rotation_threshold;
+double Task2::_icp_absolute_mse;
+int Task2::_icp_max_iterations;
+int Task2::_icp_max_similar_iterations;
+double Task2::_icp_relative_mse;
+
 Task2::Task2(){};
 
 bool Task2::init(int argc, char** argv)
@@ -45,6 +56,7 @@ bool Task2::init(int argc, char** argv)
 
     /* CHECKKK */
     /* Argument number check. */
+    /*
     if (argc > N+2)
     {
         ROS_INFO("Too many arguments.\n");
@@ -55,7 +67,19 @@ bool Task2::init(int argc, char** argv)
         ROS_INFO("Too few arguments.\n");
         return false;
     }
+    */
 
+    _icp_fitness_epsilon = std::atof(argv[static_cast<int>(Argument::ICP_FITNESS_EPSILON)]);
+    _icp_transformation_epsilon = std::atof(argv[static_cast<int>(Argument::ICP_TRANSFORMATION_EPSILON)]);
+    _icp_correspondence_distance = std::atof(argv[static_cast<int>(Argument::ICP_MAX_CORRESPONDENCE_DISTANCE)]);
+    _icp_ransac_iterations = std::atoi(argv[static_cast<int>(Argument::ICP_RANSAC_ITERATIONS)]);
+    _icp_inlier_threshold = std::atof(argv[static_cast<int>(Argument::ICP_RANSAC_INLIER_THRESHOLD)]);
+    _icp_translation_threshold = std::atof(argv[static_cast<int>(Argument::ICP_TRANSLATION_THRESHOLD)]);
+    _icp_rotation_threshold = std::atof(argv[static_cast<int>(Argument::ICP_ROTATION_THRESHOLD)]);
+    _icp_absolute_mse = std::atof(argv[static_cast<int>(Argument::ICP_ABSOLUTE_MSE)]);
+    _icp_max_iterations = std::atoi(argv[static_cast<int>(Argument::ICP_MAX_ITERATIONS)]);
+    _icp_max_similar_iterations = std::atoi(argv[static_cast<int>(Argument::ICP_MAX_SIMILAR_ITERATIONS)]);
+    _icp_relative_mse = std::atof(argv[static_cast<int>(Argument::ICP_RELATIVE_MSE)]);
     /* Load point clouds. */
     for (int i = 0; i < MESH_TYPES; ++i)
     {
@@ -85,12 +109,13 @@ void Task2::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
-    ros::Subscriber sub = n.subscribe(TOPIC_NAME_REAL, Q_LEN, _readKinectData);
+    ros::Subscriber sub = n.subscribe(TOPIC_NAME_SIMULATION, Q_LEN, _readKinectData);
 
     tf2_ros::TransformListener tfListener(tfBuffer);
 
     while (ros::ok())
     {
+        /*
         try
         {
             transformStamped = tfBuffer.lookupTransform("base_link", "camera_link", ros::Time(0));
@@ -100,6 +125,7 @@ void Task2::run()
         {
             ROS_WARN("%s", ex.what());
         }
+        */
 
         ros::spinOnce();
     }
@@ -113,12 +139,12 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
     /* Transform point cloud coordinates from camera_link to base_link. */
-    pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
+    //pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
 
     /* Point cloud filtering. */
     pcl::PassThrough<pcl::PointXYZRGB> tableFilter;
-    
-    tableFilter.setInputCloud(transformedPointCloud);
+    /* CAMBIARE POINT CLOUD DI INPUT CON ATTIVAZIONE TF. */
+    tableFilter.setInputCloud(msgPointCloud);
     tableFilter.setFilterLimits(0.0, 1.985); //Simulation
     //tableFilter.setFilterLimits(0.0, 1.985); //Real
     tableFilter.setFilterFieldName("z");
@@ -329,11 +355,49 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             }
         }
 
+        /*
+        pcl::PointCloud<pcl::PointXYZ>::Ptr translatedReference (new pcl::PointCloud<pcl::PointXYZ>);
+        for (const auto &point : _objects[static_cast<int>(detectionChoice.mesh)]->points)
+        {
+            pcl::PointXYZ translatedPoint;
+            translatedPoint.x = point.x + detectionsNoHSV[i]->points[0].x;
+            translatedPoint.y = point.y + detectionsNoHSV[i]->points[0].y;
+            translatedPoint.z = point.z + detectionsNoHSV[i]->points[0].z;
+            translatedReference->points.push_back(translatedPoint);
+        }
+        */
+
         pcl::PointCloud<pcl::PointXYZ>::Ptr lastCloud (new pcl::PointCloud<pcl::PointXYZ>);
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
         icp.setInputSource(_objects[static_cast<int>(detectionChoice.mesh)]);
         icp.setInputTarget(detectionsNoHSV[i]);
+        icp.setEuclideanFitnessEpsilon(_icp_fitness_epsilon);
+        icp.setTransformationEpsilon(_icp_transformation_epsilon);
+        icp.setMaxCorrespondenceDistance(_icp_correspondence_distance);
+        icp.setRANSACIterations(_icp_ransac_iterations);
+        icp.setRANSACOutlierRejectionThreshold(_icp_inlier_threshold);
+        //auto convCrit = icp.getConvergeCriteria();
+        //convCrit->setAbsoluteMSE(_icp_absolute_mse);
+        //convCrit->setTranslationThreshold(_icp_translation_threshold);
+        //convCrit->setRotationThreshold(_icp_rotation_threshold);
+        //convCrit->setMaximumIterations(_icp_max_iterations);
+        //convCrit->setMaximumIterationsSimilarTransforms(_icp_max_similar_iterations);
+        //convCrit->setRelativeMSE(_icp_relative_mse);
         icp.align(*lastCloud);
+
+        
+        for (const auto &point : lastCloud->points)
+        {
+            pcl::PointXYZRGB modelP;
+            modelP.x = point.x;
+            modelP.y = point.y;
+            modelP.z = point.z;
+            modelP.r = 195;
+            modelP.g = 0;
+            modelP.b = 252;
+            outputCloud3->points.push_back(modelP);
+        }
+        
 
         Eigen::Matrix4f transformation = icp.getFinalTransformation();
         float x = transformation(0,3);
@@ -404,5 +468,11 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         {
         }
         */
+    }
+
+    pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
+    viewer.showCloud(outputCloud3);
+    while (!viewer.wasStopped ())
+    {
     }
 }
