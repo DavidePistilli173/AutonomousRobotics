@@ -38,6 +38,21 @@ enum class Argument
     ICP_MAX_ITERATIONS,
     ICP_MAX_SIMILAR_ITERATIONS,
     ICP_RELATIVE_MSE,
+    FILTER_SIMULATION_MIN_X,
+    FILTER_SIMULATION_MAX_X,
+    FILTER_SIMULATION_MIN_Y,
+    FILTER_SIMULATION_MAX_Y,
+    FILTER_SIMULATION_MIN_Z,
+    FILTER_SIMULATION_MAX_Z,
+    FILTER_REAL_MIN_X,
+    FILTER_REAL_MAX_X,
+    FILTER_REAL_MIN_Y,
+    FILTER_REAL_MAX_Y,
+    FILTER_REAL_MIN_Z,
+    FILTER_REAL_MAX_Z,
+    O1, O2, O3, O4, O5, O6, O7, O8,
+    O9, O10, O11, O12, O13, O14, O15, O16,
+    TOTAL
 };
 
 struct DetectionObject
@@ -88,6 +103,15 @@ class Task2
         static int _icp_max_iterations;
         static int _icp_max_similar_iterations;
         static double _icp_relative_mse;
+
+        static double _min_x;
+        static double _max_x;
+        static double _min_y;
+        static double _max_y;
+        static double _min_z;
+        static double _max_z;
+
+        static int _topic;
 
         static void _readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg);
 

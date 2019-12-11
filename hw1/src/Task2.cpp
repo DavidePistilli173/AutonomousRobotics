@@ -29,7 +29,7 @@ const std::string Task2::PATHS[MESH_TYPES] =
 
 const char Task2::NODE_NAME[] = "hw1_task2";
 const char Task2::TOPIC_NAME_SIMULATION[] = "/camera/depth_registered/points"; //Alternative topic
-const char Task2::TOPIC_NAME_REAL[] = "/camera/hd/points"; //Active topic
+const char Task2::TOPIC_NAME_REAL[] = "/camera/qhd/points"; //Active topic
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr Task2::_objects[MESH_TYPES];
 tf2_ros::Buffer Task2::tfBuffer;
@@ -47,6 +47,15 @@ int Task2::_icp_max_iterations;
 int Task2::_icp_max_similar_iterations;
 double Task2::_icp_relative_mse;
 
+double Task2::_min_x;
+double Task2::_max_x;
+double Task2::_min_y;
+double Task2::_max_y;
+double Task2::_min_z;
+double Task2::_max_z;
+
+int Task2::_topic;
+
 Task2::Task2(){};
 
 bool Task2::init(int argc, char** argv)
@@ -54,21 +63,20 @@ bool Task2::init(int argc, char** argv)
     /* Node init. */
     ros::init(argc, argv, NODE_NAME);
 
-    /* CHECKKK */
     /* Argument number check. */
-    /*
-    if (argc > N+2)
+    if (argc > static_cast<int>(Argument::TOTAL))
     {
         ROS_INFO("Too many arguments.\n");
         return false;
     }
-    if (argc < 3)
+    if (argc < static_cast<int>(Argument::O2))
     {
         ROS_INFO("Too few arguments.\n");
         return false;
     }
-    */
 
+    /* Set ICP parameters. */
+    ROS_INFO("Setting ICP parameters...");
     _icp_fitness_epsilon = std::atof(argv[static_cast<int>(Argument::ICP_FITNESS_EPSILON)]);
     _icp_transformation_epsilon = std::atof(argv[static_cast<int>(Argument::ICP_TRANSFORMATION_EPSILON)]);
     _icp_correspondence_distance = std::atof(argv[static_cast<int>(Argument::ICP_MAX_CORRESPONDENCE_DISTANCE)]);
@@ -80,7 +88,32 @@ bool Task2::init(int argc, char** argv)
     _icp_max_iterations = std::atoi(argv[static_cast<int>(Argument::ICP_MAX_ITERATIONS)]);
     _icp_max_similar_iterations = std::atoi(argv[static_cast<int>(Argument::ICP_MAX_SIMILAR_ITERATIONS)]);
     _icp_relative_mse = std::atof(argv[static_cast<int>(Argument::ICP_RELATIVE_MSE)]);
+
+    /* Set point cloud filtering parameters. */
+    ROS_INFO("Setting filter parameters...");
+    if (std::atoi(argv[static_cast<int>(Argument::SIMULATION)]) == 0)
+    {
+        _topic = 0;
+        _min_x = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MIN_X)]);
+        _max_x = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MAX_X)]);
+        _min_y = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MIN_Y)]);
+        _max_y = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MAX_Y)]);
+        _min_z = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MIN_Z)]);
+        _max_z = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MAX_Z)]);
+    }
+    else
+    {
+        _topic = 1;
+        _min_x = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MIN_X)]);
+        _max_x = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MAX_X)]);
+        _min_y = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MIN_Y)]);
+        _max_y = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MAX_Y)]);
+        _min_z = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MIN_Z)]);
+        _max_z = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MAX_Z)]);
+    }
+
     /* Load point clouds. */
+    ROS_INFO("Loading reference point clouds...");
     for (int i = 0; i < MESH_TYPES; ++i)
     {
         _objects[i] = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>());
@@ -109,63 +142,59 @@ void Task2::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
-    ros::Subscriber sub = n.subscribe(TOPIC_NAME_SIMULATION, Q_LEN, _readKinectData);
-
-    tf2_ros::TransformListener tfListener(tfBuffer);
-
-    while (ros::ok())
+    ros::Subscriber sub = n.subscribe(TOPIC_NAME_REAL, Q_LEN, _readKinectData);
+    /*
+    if (_topic == 0)
     {
-        /*
-        try
-        {
-            transformStamped = tfBuffer.lookupTransform("base_link", "camera_link", ros::Time(0));
-            ROS_INFO("Tf received.");
-        }
-        catch(tf2::TransformException &ex)
-        {
-            ROS_WARN("%s", ex.what());
-        }
-        */
-
-        ros::spinOnce();
+        ROS_INFO("Subscribing to topic %s", TOPIC_NAME_REAL);
+        ros::Subscriber sub = n.subscribe(TOPIC_NAME_REAL, Q_LEN, _readKinectData);
     }
+    else
+    {
+        ROS_INFO("Subscribing to topic %s", TOPIC_NAME_SIMULATION);
+        ros::Subscriber sub = n.subscribe(TOPIC_NAME_SIMULATION, Q_LEN, _readKinectData);
+    }
+    */
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    ros::spin();
 }
 
 void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
+    ROS_INFO("Point cloud received.");
     /* Convert msg to PointCloud. */
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr msgPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*msg, *msgPointCloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
+    ROS_INFO("Applying transformations.");
+
     /* Transform point cloud coordinates from camera_link to base_link. */
-    //pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
+    pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
 
     /* Point cloud filtering. */
+    ROS_INFO("Filtering point cloud.");
     pcl::PassThrough<pcl::PointXYZRGB> tableFilter;
-    /* CAMBIARE POINT CLOUD DI INPUT CON ATTIVAZIONE TF. */
-    tableFilter.setInputCloud(msgPointCloud);
-    tableFilter.setFilterLimits(0.0, 1.985); //Simulation
-    //tableFilter.setFilterLimits(0.0, 1.985); //Real
+    tableFilter.setInputCloud(transformedPointCloud);
+    //tableFilter.setFilterLimits(0.0, 1.985); //Simulation
+    tableFilter.setFilterLimits(_min_z, _max_z); //Real
     tableFilter.setFilterFieldName("z");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud1(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud1);
 
     tableFilter.setInputCloud(outputCloud1);
-    tableFilter.setFilterLimits(-0.45, 0.3); //Simulation
-    //tableFilter.setFilterLimits(0.0, 0.5); //Real
+    //tableFilter.setFilterLimits(-0.45, 0.3); //Simulation
+    tableFilter.setFilterLimits(_min_y, _max_y); //Real
     tableFilter.setFilterFieldName("y");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud2(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud2);
 
     tableFilter.setInputCloud(outputCloud2);
-    tableFilter.setFilterLimits(-0.6, 0.55); //Simulation
-    //tableFilter.setFilterLimits(-0.6, 0.55); //Real
+    //tableFilter.setFilterLimits(-0.6, 0.55); //Simulation
+    tableFilter.setFilterLimits(_min_x, _max_x); //Real
     tableFilter.setFilterFieldName("x");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud3(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud3);
-
-    /* Downsampling????????????????????????????? */
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloudNoRGB(new pcl::PointCloud<pcl::PointXYZ>);
     for (const auto &point : outputCloud3->points)
@@ -310,7 +339,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         int pointCount = 0;
         for (const auto &point : detections[i]->points)
         {
-            if (point.s > 0.1)
+            if (point.s > 0.3 && point.v > 0.3)
             { 
                 averageHue += point.h;
                 ++pointCount;
@@ -321,8 +350,13 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         averageHue /= pointCount;
         ROS_INFO("Average hue: %f", averageHue);
         
+        /* Simulazione. */
+        /* Giallo-> 30 90
+           Verde 90 180
+           Blu 180 270 */
         DetectionObject detectionChoice;
-        if (averageHue > 30 && averageHue <= 90)
+        float maxHeight = 0;
+        if (averageHue > 60 && averageHue <= 90)
         {
             detectionChoice = {Mesh::HEX, Colour::YELLOW};
             //Esagono
@@ -339,19 +373,37 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         }
         else
         {
+            //maxHeight <= 1.9107 /* Simulazione */
             //Cubo o prisma rossi
-            float maxHeight = 200;
             for (const auto &point : detections[i]->points)
             {
-                if (point.z < maxHeight) maxHeight = point.z;
+                if (point.z > maxHeight) maxHeight = point.z;
             }
-            if (maxHeight <= 1.9107) 
+            if (maxHeight <= 0.5) 
             {
-                detectionChoice = {Mesh::CUBE, Colour::RED};
+                detectionChoice = {Mesh::PRISM, Colour::RED};
             }
             else 
             {
-                detectionChoice = {Mesh::PRISM, Colour::RED};
+                detectionChoice = {Mesh::CUBE, Colour::RED};
+            }
+        }
+
+        if (detectionChoice.mesh == Mesh::CUBE)
+        {
+            double zThreshold = 0.04;
+            double minZ = maxHeight - zThreshold;
+            std::vector<pcl::PointXYZHSV, Eigen::aligned_allocator<pcl::PointXYZHSV>>::iterator it;
+            for (it = detections[i]->points.begin(); it < detections[i]->points.end(); ++it)
+            {
+                if ((*it).z < minZ)
+                {
+                    detections[i]->points.erase(it);
+                }
+                else
+                {
+                    (*it).z = maxHeight;
+                }
             }
         }
 
@@ -366,6 +418,8 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             translatedReference->points.push_back(translatedPoint);
         }
         */
+
+        ROS_INFO("Matched to: %s", PATHS[static_cast<int>(detectionChoice.mesh)].c_str());
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr lastCloud (new pcl::PointCloud<pcl::PointXYZ>);
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -470,6 +524,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         */
     }
 
+    
     pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
     viewer.showCloud(outputCloud3);
     while (!viewer.wasStopped ())
