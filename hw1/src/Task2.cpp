@@ -356,6 +356,11 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
            Blu 180 270 */
         DetectionObject detectionChoice;
         float maxHeight = 0;
+        for (const auto &point : detections[i]->points)
+        {
+            if (point.z > maxHeight) maxHeight = point.z;
+        }
+        
         if (averageHue > 60 && averageHue <= 90)
         {
             detectionChoice = {Mesh::HEX, Colour::YELLOW};
@@ -375,10 +380,6 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         {
             //maxHeight <= 1.9107 /* Simulazione */
             //Cubo o prisma rossi
-            for (const auto &point : detections[i]->points)
-            {
-                if (point.z > maxHeight) maxHeight = point.z;
-            }
             if (maxHeight <= 0.5) 
             {
                 detectionChoice = {Mesh::PRISM, Colour::RED};
