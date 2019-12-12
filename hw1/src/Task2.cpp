@@ -22,9 +22,9 @@
 /* Definition of Task2 static variables. */
 const std::string Task2::PATHS[MESH_TYPES] = 
 {
-    "/meshes/cube_face.pcd",
+    "/meshes/cube_face_2.pcd",
     "/meshes/hexagon_face.pcd",
-    "/meshes/prism2.pcd"
+    "/meshes/prism_base.pcd"
 };
 
 const char Task2::NODE_NAME[] = "hw1_task2";
@@ -334,7 +334,12 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         }
         */
 
-        ROS_INFO("Detection %d", i);
+       DetectionObject detectionChoice;
+        float maxHeight = 0;
+        for (const auto &point : detections[i]->points)
+        {
+            if (point.z > maxHeight) maxHeight = point.z;
+        }
         float averageHue = 0.0;
         int pointCount = 0;
         for (const auto &point : detections[i]->points)
@@ -345,66 +350,30 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
                 ++pointCount;
             }
         }
-        // TODO: Check divisione per 0
-        ROS_INFO("Number of points: %d", detections[i]->points.size());
         averageHue /= pointCount;
-        ROS_INFO("Average hue: %f", averageHue);
-        
-        /* Simulazione. */
-        /* Giallo-> 30 90
-           Verde 90 180
-           Blu 180 270 */
-        DetectionObject detectionChoice;
-        float maxHeight = 0;
-        if (averageHue > 60 && averageHue <= 90)
+
+        if (maxHeight >= 0.1) detectionChoice = {Mesh::HEX, Colour::YELLOW};
+        else if (maxHeight >= 0.045)
         {
-            detectionChoice = {Mesh::HEX, Colour::YELLOW};
-            //Esagono
-        }
-        else if (averageHue > 90 && averageHue <= 180)
-        {
-            detectionChoice = {Mesh::PRISM, Colour::GREEN};
-            //Prisma verde
-        }
-        else if (averageHue > 180 && averageHue <= 270)
-        {
-            detectionChoice = {Mesh::CUBE, Colour::BLUE};
-            //Cubo blu
+            if (averageHue <= 140) detectionChoice = {Mesh::CUBE, Colour::RED};
+            else detectionChoice = {Mesh::CUBE, Colour::BLUE};
         }
         else
         {
-            //maxHeight <= 1.9107 /* Simulazione */
-            //Cubo o prisma rossi
-            for (const auto &point : detections[i]->points)
-            {
-                if (point.z > maxHeight) maxHeight = point.z;
-            }
-            if (maxHeight <= 0.5) 
-            {
-                detectionChoice = {Mesh::PRISM, Colour::RED};
-            }
-            else 
-            {
-                detectionChoice = {Mesh::CUBE, Colour::RED};
-            }
+            if (averageHue <= 80) detectionChoice = {Mesh::PRISM, Colour::RED};
+            else detectionChoice = {Mesh::PRISM, Colour::GREEN};
         }
 
-        if (detectionChoice.mesh == Mesh::CUBE)
+        ROS_INFO("Detection %d", i);
+
+        // TODO: Check divisione per 0
+        ROS_INFO("Number of points: %d", detections[i]->points.size());
+        ROS_INFO("Average hue: %f", averageHue);
+        ROS_INFO("Max height: %f", maxHeight);
+
+        for (auto &point : detectionsNoHSV[i]->points)
         {
-            double zThreshold = 0.04;
-            double minZ = maxHeight - zThreshold;
-            std::vector<pcl::PointXYZHSV, Eigen::aligned_allocator<pcl::PointXYZHSV>>::iterator it;
-            for (it = detections[i]->points.begin(); it < detections[i]->points.end(); ++it)
-            {
-                if ((*it).z < minZ)
-                {
-                    detections[i]->points.erase(it);
-                }
-                else
-                {
-                    (*it).z = maxHeight;
-                }
-            }
+            point.z = maxHeight;
         }
 
         /*
@@ -439,8 +408,11 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         //convCrit->setRelativeMSE(_icp_relative_mse);
         icp.align(*lastCloud);
 
+        Eigen::Matrix4f transformation = icp.getFinalTransformation();
+        pcl::PointCloud<pcl::PointXYZ>::Ptr transformedCloud(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::transformPointCloud(*_objects[static_cast<int>(detectionChoice.mesh)], *transformedCloud, transformation);
         
-        for (const auto &point : lastCloud->points)
+        for (const auto &point : transformedCloud->points)
         {
             pcl::PointXYZRGB modelP;
             modelP.x = point.x;
@@ -452,8 +424,6 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             outputCloud3->points.push_back(modelP);
         }
         
-
-        Eigen::Matrix4f transformation = icp.getFinalTransformation();
         float x = transformation(0,3);
         float y = transformation(1,3);
         float z = transformation(2,3);
@@ -530,4 +500,5 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     while (!viewer.wasStopped ())
     {
     }
+    
 }
