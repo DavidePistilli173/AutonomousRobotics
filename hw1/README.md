@@ -1,4 +1,4 @@
-
+<!--
     ___       ___       ___       ___       ___       ___            ___       ___       ___   
    /\  \     /\  \     /\__\     /\  \     /\  \     /\  \          /\__\     /\__\     /\  \  
   /::\  \   /::\  \   /:/ _/_   /::\  \   /::\  \   /::\  \        /:/ _/_   /:| _|_   /::\  \ 
@@ -7,13 +7,13 @@
   \::/  /   |:\/__/   \::/  /     \/__/     \/__/   \::/  /        \::/  /    |:/  /   \::/  / 
    \/__/     \|__|     \/__/                         \/__/          \/__/     \/__/     \/__/  
 
-
+-->
 GUIDA ALL'INSTALLAZIONE
 ********************************************* Task1 *********************************************
 
 Abbiamo creato un file launch dove abbiamo inserito il path del pacchetto
 e tutti i possibili 16 parametri degli oggetti da riconoscere da o1 a o16, l'unico parametro
-obbligatorio è o1, gli altri parametri sono opzionali. 
+obbligatorio Ã¨ o1, gli altri parametri sono opzionali. 
 
 
 1) catkin buid
