@@ -32,12 +32,6 @@ enum class Argument
     ICP_MAX_CORRESPONDENCE_DISTANCE,
     ICP_RANSAC_ITERATIONS,
     ICP_RANSAC_INLIER_THRESHOLD,
-    ICP_TRANSLATION_THRESHOLD,
-    ICP_ROTATION_THRESHOLD,
-    ICP_ABSOLUTE_MSE,
-    ICP_MAX_ITERATIONS,
-    ICP_MAX_SIMILAR_ITERATIONS,
-    ICP_RELATIVE_MSE,
     FILTER_SIMULATION_MIN_X,
     FILTER_SIMULATION_MAX_X,
     FILTER_SIMULATION_MIN_Y,
@@ -59,6 +53,8 @@ struct DetectionObject
 {
     Mesh mesh;
     Colour colour;
+
+
 };
 
 class Task2
@@ -82,27 +78,25 @@ class Task2
         /* Topic name. */
         static const char TOPIC_NAME_SIMULATION[];
         static const char TOPIC_NAME_REAL[];
+        /* Destination topic name. */
+        static const char DEST_TOPIC_NAME[];
         /* Current node name. */
         static const char NODE_NAME[];
         /* Mesh files. */
         static const std::string PATHS[MESH_TYPES];
+        /* Object names. */
+        static const std::string frames[TYPES];
 
     private:
         static pcl::PointCloud<pcl::PointXYZ>::Ptr _objects[MESH_TYPES];
         static tf2_ros::Buffer tfBuffer;
-        static geometry_msgs::TransformStamped transformStamped;
+        static ros::Publisher posePublisher;
 
         static double _icp_fitness_epsilon;
         static double _icp_transformation_epsilon;
         static double _icp_correspondence_distance;
         static int _icp_ransac_iterations;
         static double _icp_inlier_threshold;
-        static double _icp_translation_threshold;
-        static double _icp_rotation_threshold;
-        static double _icp_absolute_mse;
-        static int _icp_max_iterations;
-        static int _icp_max_similar_iterations;
-        static double _icp_relative_mse;
 
         static double _min_x;
         static double _max_x;
@@ -110,6 +104,8 @@ class Task2
         static double _max_y;
         static double _min_z;
         static double _max_z;
+
+        static std::vector<DetectionObject> _targets;
 
         static int _topic;
 

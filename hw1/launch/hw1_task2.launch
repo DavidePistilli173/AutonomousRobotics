@@ -6,12 +6,6 @@
     <arg name="icp_max_correspondence_distance" value="2"/>
     <arg name="icp_ransac_iterations" value="750"/>
     <arg name="icp_inlier_threshold" value="0.01"/>
-    <arg name="icp_translation_threshold" value="0.6"/>
-    <arg name="icp_rotation_threshold" value="0.6"/>
-    <arg name="icp_absolute_mse" value="0.5"/>
-    <arg name="icp_max_iterations" value="3000"/>
-    <arg name="icp_max_similar_iterations" value="300"/>
-    <arg name="icp_relative_mse" value="0.5"/>
     <arg name="simulation_min_x" value="-0.6"/>
     <arg name="simulation_max_x" value="0.55"/>
     <arg name="simulation_min_y" value="-0.45"/>
@@ -42,8 +36,7 @@
     <arg name="o15" default=""/>
     <arg name="o16" default=""/>
     <node name="hw1_task2" pkg="hw1" type="hw1_task2" args="$(arg path) $(arg simulation) $(arg icp_fitness_epsilon) $(arg icp_transformation_epsilon) 
-    $(arg icp_max_correspondence_distance) $(arg icp_ransac_iterations) $(arg icp_inlier_threshold) $(arg icp_translation_threshold) $(arg icp_rotation_threshold) 
-    $(arg icp_absolute_mse) $(arg icp_max_iterations) $(arg icp_max_similar_iterations) $(arg icp_relative_mse) $(arg simulation_min_x) $(arg simulation_max_x) 
+    $(arg icp_max_correspondence_distance) $(arg icp_ransac_iterations) $(arg icp_inlier_threshold) $(arg simulation_min_x) $(arg simulation_max_x) 
     $(arg simulation_min_y) $(arg simulation_max_y) $(arg simulation_min_z) $(arg simulation_max_z) $(arg real_min_x) $(arg real_max_x) $(arg real_min_y) 
     $(arg real_max_y) $(arg real_min_z) $(arg real_max_z) $(arg o1) $(arg o2) $(arg o3) $(arg o4) $(arg o5) $(arg o6) $(arg o7) $(arg o8) $(arg o9) $(arg o10) $(arg o11) 
     $(arg o12) $(arg o13) $(arg o14) $(arg o15) $(arg o16)" output="screen"/>
