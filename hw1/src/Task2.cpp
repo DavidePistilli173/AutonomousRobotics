@@ -142,19 +142,19 @@ void Task2::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
-    ros::Subscriber sub = n.subscribe(TOPIC_NAME_REAL, Q_LEN, _readKinectData);
-    /*
+    ros::Subscriber sub;
+    
     if (_topic == 0)
     {
         ROS_INFO("Subscribing to topic %s", TOPIC_NAME_REAL);
-        ros::Subscriber sub = n.subscribe(TOPIC_NAME_REAL, Q_LEN, _readKinectData);
+        sub = n.subscribe(TOPIC_NAME_REAL, Q_LEN, _readKinectData);
     }
     else
     {
         ROS_INFO("Subscribing to topic %s", TOPIC_NAME_SIMULATION);
-        ros::Subscriber sub = n.subscribe(TOPIC_NAME_SIMULATION, Q_LEN, _readKinectData);
+        sub = n.subscribe(TOPIC_NAME_SIMULATION, Q_LEN, _readKinectData);
     }
-    */
+    
     tf2_ros::TransformListener tfListener(tfBuffer);
     ros::spin();
 }

@@ -1,12 +1,14 @@
 #include "Task1.hpp"
 
-#include <ros/ros.h>
+#include "hw1/poseArray.h"
 
 /* Definitions of static variables. */
 int Task1::_targets[Task1::N];
 int Task1::_targetNum = 0;
 std::ofstream Task1::_outputFile;
 bool Task1::_received = false;
+
+ros::Publisher Task1::posePublisher;
 
 const std::string Task1::frames[N] =
     {
@@ -87,11 +89,14 @@ void Task1::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
-    ros::Subscriber sub = n.subscribe(TOPIC_NAME, Q_LEN, _printPose);
+    ros::Subscriber sub = n.subscribe(SOURCE_TOPIC_NAME, Q_LEN, _printPose);
+    posePublisher = n.advertise<hw1::poseArray>(DEST_TOPIC_NAME, Q_LEN);
+    ros::Rate loop_rate(10);
     /* Loop until a message is received. */
-    while (!_received)
+    while (ros::ok())
     {
         ros::spinOnce();
+        loop_rate.sleep();
     }
 }
 
@@ -99,6 +104,7 @@ void Task1::_printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg
 {
     /* A message has been received.*/
     _received = true;
+    hw1::poseArray topicOutput;
 
     /* Loop through all detections. */
     for (const auto &detection : msg->detections)
@@ -116,28 +122,47 @@ void Task1::_printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg
         {
             ROS_INFO("Object detected: %d", _targets[j]);
 
-            /* Print object frame_id. */
-            _outputFile << "Object: " << frames[_targets[j]] << std::endl;
+            if (!_received)
+            {
+                /* Print object frame_id. */
+                _outputFile << "Object: " << frames[_targets[j]] << std::endl;
 
-            /* Print object orientation. */
-            _outputFile  << "Orientation:" 
-                        << "\n  w = " << detection.pose.pose.pose.orientation.w 
-                        << "\n  x = " << detection.pose.pose.pose.orientation.x 
-                        << "\n  y = " << detection.pose.pose.pose.orientation.y
-                        << "\n  z = " << detection.pose.pose.pose.orientation.z 
-                        << std::endl;
+                /* Print object orientation. */
+                _outputFile  << "Orientation:" 
+                            << "\n  w = " << detection.pose.pose.pose.orientation.w 
+                            << "\n  x = " << detection.pose.pose.pose.orientation.x 
+                            << "\n  y = " << detection.pose.pose.pose.orientation.y
+                            << "\n  z = " << detection.pose.pose.pose.orientation.z 
+                            << std::endl;
 
-            /* Print object position. */
-            _outputFile  << "Position:" 
-                        << "\n  x = " << detection.pose.pose.pose.position.x 
-                        << "\n  y = " << detection.pose.pose.pose.position.y 
-                        << "\n  z = " << detection.pose.pose.pose.position.z 
-                        << std::endl;
+                /* Print object position. */
+                _outputFile  << "Position:" 
+                            << "\n  x = " << detection.pose.pose.pose.position.x 
+                            << "\n  y = " << detection.pose.pose.pose.position.y 
+                            << "\n  z = " << detection.pose.pose.pose.position.z 
+                            << std::endl;
 
-            /* Print object separator. */
-            _outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
+                /* Print object separator. */
+                _outputFile << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*" << std::endl << std::endl;
 
-            ROS_INFO("Data written to file (object %d)", _targets[j]);
+                ROS_INFO("Data written to file (object %d)", _targets[j]);
+            }
+
+            /* Publish the object pose to be used in later nodes. */
+            hw1::pose objPose;
+
+            objPose.rotation.w = detection.pose.pose.pose.orientation.w;
+            objPose.rotation.x = detection.pose.pose.pose.orientation.x;
+            objPose.rotation.y = detection.pose.pose.pose.orientation.y;
+            objPose.rotation.z = detection.pose.pose.pose.orientation.z;
+
+            objPose.coordinates.x = detection.pose.pose.pose.position.x;
+            objPose.coordinates.y = detection.pose.pose.pose.position.y;
+            objPose.coordinates.z = detection.pose.pose.pose.position.z;
+
+            topicOutput.objects.push_back(objPose);
         }
     }
+
+    posePublisher.publish(topicOutput);
 }

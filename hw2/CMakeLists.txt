@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(hw1)
+project(hw2)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -12,16 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
   std_msgs
-  message_generation
-  apriltag_ros
-  pcl_ros
-  tf2
-  tf2_ros
-  tf2_msgs
-  tf2_sensor_msgs
-  sensor_msgs
 )
-find_package(PCL 1.8 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -57,13 +47,11 @@ find_package(PCL 1.8 REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
- add_message_files(
-  FILES
-  position.msg
-  orientation.msg
-  pose.msg
-  poseArray.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -80,10 +68,10 @@ find_package(PCL 1.8 REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   geometry_msgs#   std_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -115,9 +103,8 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS message_runtime
 #  INCLUDE_DIRS include
-#  LIBRARIES hw1
+#  LIBRARIES hw2
 #  CATKIN_DEPENDS geometry_msgs roscpp std_msgs
 #  DEPENDS system_lib
 )
@@ -133,15 +120,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(hw1_task1 src/hw1_task1.cpp src/Task1.cpp)
-add_executable(hw1_task2 src/hw1_task2.cpp src/Task2.cpp)
-
-target_link_libraries(hw1_task1 ${catkin_LIBRARIES})
-target_link_libraries(hw1_task2 ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/hw1.cpp
+#   src/${PROJECT_NAME}/hw2.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -152,7 +133,7 @@ target_link_libraries(hw1_task2 ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/hw1_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/hw2_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -216,7 +197,7 @@ target_link_libraries(hw1_task2 ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_hw1.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_hw2.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
