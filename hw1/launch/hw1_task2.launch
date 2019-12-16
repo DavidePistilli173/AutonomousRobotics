@@ -1,10 +1,10 @@
 <launch>
     <arg name="path" value="$(find hw1)"/>
     <arg name="simulation" default="0"/>
-    <arg name="icp_fitness_epsilon" value="1e-5"/>
+    <arg name="icp_fitness_epsilon" value="1e-12"/>
     <arg name="icp_transformation_epsilon" value="1e-15"/>
     <arg name="icp_max_correspondence_distance" value="2"/>
-    <arg name="icp_ransac_iterations" value="200"/>
+    <arg name="icp_ransac_iterations" value="750"/>
     <arg name="icp_inlier_threshold" value="0.01"/>
     <arg name="icp_translation_threshold" value="0.6"/>
     <arg name="icp_rotation_threshold" value="0.6"/>

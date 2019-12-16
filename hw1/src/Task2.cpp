@@ -18,6 +18,7 @@
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/registration/registration.h>
 #include <pcl_ros/transforms.h>
+#include <pcl/filters/extract_indices.h>
 
 /* Definition of Task2 static variables. */
 const std::string Task2::PATHS[MESH_TYPES] = 
@@ -353,7 +354,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         averageHue /= pointCount;
 
         if (maxHeight >= 0.1) detectionChoice = {Mesh::HEX, Colour::YELLOW};
-        else if (maxHeight >= 0.045)
+        else if (maxHeight >= 0.055)
         {
             if (averageHue <= 140) detectionChoice = {Mesh::CUBE, Colour::RED};
             else detectionChoice = {Mesh::CUBE, Colour::BLUE};
@@ -362,6 +363,20 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         {
             if (averageHue <= 80) detectionChoice = {Mesh::PRISM, Colour::RED};
             else detectionChoice = {Mesh::PRISM, Colour::GREEN};
+
+            pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+            pcl::ExtractIndices<pcl::PointXYZ> extract;
+            for (int j = 0; j < detectionsNoHSV[i]->points.size(); ++j)
+            {
+                if (detectionsNoHSV[i]->points[j].z < 0.8 * maxHeight)
+                {
+                    inliers->indices.push_back(j);
+                }
+            }
+            extract.setInputCloud(detectionsNoHSV[i]);
+            extract.setIndices(inliers);
+            extract.setNegative(true);
+            extract.filter(*detectionsNoHSV[i]);
         }
 
         ROS_INFO("Detection %d", i);
