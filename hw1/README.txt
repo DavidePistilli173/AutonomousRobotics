@@ -14,9 +14,9 @@ e tutti i possibili 16 parametri degli oggetti da riconoscere da o1 a o16, l'uni
 obbligatorio è o1, gli altri parametri sono opzionali. 
 
 
-1) catkin buid
+1) catkin build
 
-2) roslaunc hw1 hw1_task1.launch o1:=frame_id [o2:=frame_id..... o16:=frame_id]
+2) roslaunch hw1 hw1_task1.launch o1:=frame_id [o2:=frame_id..... o16:=frame_id]
 
 
 ********************************************* Task2 *********************************************
