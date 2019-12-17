@@ -82,17 +82,20 @@ bool Task2::init(int argc, char** argv)
         return false;
     }
 
+    /* Set all target objects. */
     for (int i = static_cast<int>(Argument::O1); i < argc; ++i)
     {
         int j = 0;
         while (j < TYPES && argv[i] != frames[j]) ++j;
 
+        /* If there is no object with the input name, exit. */
         if (j == TYPES)
         {
             ROS_ERROR("Wrong target object: %s", argv[i]);
             return false;
         }
 
+        /* Set the appropriate object type. */
         DetectionObject target;
         switch (j)
         {
@@ -117,6 +120,7 @@ bool Task2::init(int argc, char** argv)
             target.colour = Colour::RED;
             break;
         }
+        /* Add the current object to the targets. */
         _targets.push_back(target);
     }
 
@@ -173,6 +177,7 @@ void Task2::run()
     posePublisher = n.advertise<hw1::poseArray>(DEST_TOPIC_NAME, Q_LEN);
     ros::Rate loop_rate(10);
     
+    /* Subscribe to the appropriate topic. */
     if (_topic == 0)
     {
         ROS_INFO("Subscribing to topic %s", TOPIC_NAME_REAL);
@@ -185,6 +190,8 @@ void Task2::run()
     }
     
     tf2_ros::TransformListener tfListener(tfBuffer);
+
+    /* Main loop. */
     while (ros::ok())
     {
         ros::spinOnce();
@@ -194,16 +201,16 @@ void Task2::run()
 
 void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 {
-    hw1::poseArray topicOutput;
+    hw1::poseArray topicOutput; // Output message.
 
-    ROS_INFO("Point cloud received.");
     /* Convert msg to PointCloud. */
+    ROS_INFO("Point cloud received.");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr msgPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*msg, *msgPointCloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
-    ROS_INFO("Applying transformations.");
     /* Transform point cloud coordinates from camera_link to base_link. */
+    ROS_INFO("Applying transformations.");
     pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
 
     /* Point cloud filtering. */
@@ -244,7 +251,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     output << "Clusters: " << cluster_indices.size() << std::endl;
     ROS_INFO("%s", output.str().c_str());    
     
-    /* Store all clusters in two vectors, one with colour and one with just coordinates. */
+    /* Store all clusters in two vectors, with and without colour information. */
     std::vector<pcl::PointCloud<pcl::PointXYZHSV>::Ptr> detections;
     std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> detectionsNoHSV;
     int j = 0;
@@ -269,18 +276,18 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     for (int i = 0; i < detections.size(); ++i)
     {   
         DetectionObject detectionChoice; // Current detected object. 
-        /* Compute object maximum height. */
+        /* Compute the object's maximum height. */
         float maxHeight = 0;
         for (const auto &point : detections[i]->points)
         {
             if (point.z > maxHeight) maxHeight = point.z;
         }
-        /* Compute object average hue. */
+        /* Compute the object's average hue. */
         float averageHue = 0.0;
         int pointCount = 0;
         for (const auto &point : detections[i]->points)
         {
-            /* Filter out white/black points. */
+            /* Filter out desaturated points (eg. AprilTags). */
             if (point.s > 0.3 && point.v > 0.3)
             { 
                 averageHue += point.h;
@@ -317,6 +324,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             extract.filter(*detectionsNoHSV[i]);
         }
 
+        /* Find the target corresponding to the detected object. */
         int targetId = 0;
         while (targetId < _targets.size() && ((_targets[targetId].mesh != detectionChoice.mesh) ||
                (_targets[targetId].colour != detectionChoice.colour)))
@@ -324,20 +332,20 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
             ++targetId;
         }
 
-        ROS_WARN("TargetId = %d", targetId);
-        ROS_WARN("TargetsSize = %d", _targets.size());
+        /* If the detection doesn't match a target, move to the next detection. */
         if (targetId == _targets.size())
         {
             ROS_WARN("Object not relevant.");
             continue;
         }
 
+        /* Otherwise, find the object's pose. */
         ROS_INFO("Detection %d", i);
         ROS_INFO("Number of points: %d", detections[i]->points.size());
         ROS_INFO("Average hue: %f", averageHue);
         ROS_INFO("Max height: %f", maxHeight);
 
-        /* Move all points to maximum height in order to match them with a 2D point cloud. */
+        /* Move all points to maximum height in order to match them with a 2D reference point cloud. */
         for (auto &point : detectionsNoHSV[i]->points)
         {
             point.z = maxHeight;
@@ -373,6 +381,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         tf::Quaternion quat;
         rotationMatrix.getRotation(quat);
 
+        /* Add the pose to the output message. */
         hw1::pose object;
         object.coordinates.x = x;
         object.coordinates.y = y;
@@ -384,6 +393,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         object.rotation.z = quat.getZ();
 
         topicOutput.objects.push_back(object);
-    }    
+    }
+    /* Publish all poses. */    
     posePublisher.publish(topicOutput);
 }
