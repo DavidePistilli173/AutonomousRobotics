@@ -160,6 +160,8 @@ void Task1::_printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg
             objPose.coordinates.y = detection.pose.pose.pose.position.y;
             objPose.coordinates.z = detection.pose.pose.pose.position.z;
 
+            objPose.name = frames[j];   
+
             topicOutput.objects.push_back(objPose);
         }
     }

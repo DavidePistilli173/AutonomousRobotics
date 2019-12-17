@@ -1,2 +1,3 @@
+string name
 orientation rotation
 position coordinates

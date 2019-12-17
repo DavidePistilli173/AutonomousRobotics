@@ -309,17 +309,38 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         }
         averageHue /= pointCount;
 
+        std::string objectName = "";
         /* Choose object type based on height and colour. */
-        if (maxHeight >= 0.1) detectionChoice = {Mesh::HEX, Colour::YELLOW};
+        if (maxHeight >= 0.1)
+        {
+            detectionChoice = {Mesh::HEX, Colour::YELLOW};
+            objectName = frames[1];
+        }
         else if (maxHeight >= 0.055)
         {
-            if (averageHue <= 140) detectionChoice = {Mesh::CUBE, Colour::RED};
-            else detectionChoice = {Mesh::CUBE, Colour::BLUE};
+            if (averageHue <= 140)
+            { 
+                detectionChoice = {Mesh::CUBE, Colour::RED};
+                objectName = frames[0];
+            }
+            else
+            {
+                detectionChoice = {Mesh::CUBE, Colour::BLUE};
+                objectName = frames[3];
+            }
         }
         else
         {
-            if (averageHue <= 80) detectionChoice = {Mesh::PRISM, Colour::RED};
-            else detectionChoice = {Mesh::PRISM, Colour::GREEN};
+            if (averageHue <= 80)
+            {
+                detectionChoice = {Mesh::PRISM, Colour::RED};
+                objectName = frames[4];
+            }
+            else 
+            {
+                detectionChoice = {Mesh::PRISM, Colour::GREEN};
+                objectName = frames[2];
+            }
 
             /* Remove unnecessary points from the base of the prism. */
             pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
@@ -404,6 +425,8 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         object.rotation.x = quat.getX();
         object.rotation.y = quat.getY();
         object.rotation.z = quat.getZ();
+
+        object.name = objectName;
 
         topicOutput.objects.push_back(object);
     }
