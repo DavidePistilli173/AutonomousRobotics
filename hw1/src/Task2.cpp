@@ -204,9 +204,22 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     hw1::poseArray topicOutput; // Output message.
     sensor_msgs::PointCloud2::Ptr transformedMsg(new sensor_msgs::PointCloud2);
     geometry_msgs::TransformStamped transformStamped;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr msgPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     try
     {
-        transformStamped = tfBuffer.lookupTransform("base_link", "camera_link", ros::Time(0));
+        if (_topic == 0)
+        {
+            pcl::fromROSMsg(*msg, *msgPointCloud);
+            pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
+        }
+        else
+        {
+            transformStamped = tfBuffer.lookupTransform("camera_link", "base_link", ros::Time(0));
+            tf2::doTransform(*msg, *transformedMsg, transformStamped);
+            pcl::fromROSMsg(*transformedMsg, *transformedPointCloud);
+        }
     }
     catch(const std::exception& e)
     {
@@ -214,23 +227,20 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         return;
     }
     
-    tf2::doTransform(*msg, *transformedMsg, transformStamped);
+    
 
     /* Convert msg to PointCloud. */
     ROS_INFO("Point cloud received.");
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr msgPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::fromROSMsg(*transformedMsg, *msgPointCloud);
     //pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformedPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
     /* Transform point cloud coordinates from camera_link to base_link. */
-    //ROS_INFO("Applying transformations.");
-    //pcl_ros::transformPointCloud("base_link", *msgPointCloud, *transformedPointCloud, tfBuffer);
+    ROS_INFO("Applying transformations.");
 
     /* Point cloud filtering. */
     ROS_INFO("Filtering point cloud.");
     pcl::PassThrough<pcl::PointXYZRGB> tableFilter;
     /* Filter z axis. */
-    tableFilter.setInputCloud(msgPointCloud);
+    tableFilter.setInputCloud(transformedPointCloud);
     tableFilter.setFilterLimits(_min_z, _max_z);
     tableFilter.setFilterFieldName("z");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud1(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -247,6 +257,11 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     tableFilter.setFilterFieldName("x");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud3(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud3);
+
+    pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
+    viewer.showCloud(outputCloud3);
+    while (!viewer.wasStopped())
+    {}
 
     /* Convert RGB to HSV. */
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr hsvCloud (new pcl::PointCloud<pcl::PointXYZHSV>);
