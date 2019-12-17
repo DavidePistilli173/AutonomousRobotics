@@ -1,6 +1,6 @@
-#include "Task2.hpp"
-
 #include <ros/ros.h>
+
+#include "Task2.hpp"
 
 int main(int argc, char** argv)
 {

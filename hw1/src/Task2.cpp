@@ -1,28 +1,26 @@
-#include "Task2.hpp"
-#include "hw1/poseArray.h"
-
-
-#include <tgmath.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <pcl/conversions.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/PCLPointCloud2.h>
 #include <pcl_ros/transforms.h>
+#include <pcl/conversions.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/point_types_conversion.h>
+#include <pcl/registration/icp.h>
+#include <pcl/registration/registration.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/visualization/cloud_viewer.h>
 #include <ros/ros.h>
 #include <sstream>
-#include <pcl/registration/icp.h>
-#include <pcl/point_types_conversion.h>
 #include <tf/transform_listener.h>
-#include <pcl/features/normal_3d_omp.h>
-#include <pcl/registration/registration.h>
-#include <pcl_ros/transforms.h>
-#include <pcl/filters/extract_indices.h>
+#include <tgmath.h>
 
-/* Definition of Task2 static variables. */
+#include "hw1/poseArray.h"
+#include "Task2.hpp"
+
+/* Definitions of Task2 static variables. */
 const std::string Task2::PATHS[MESH_TYPES] = 
 {
     "/meshes/cube_face_2.pcd",
