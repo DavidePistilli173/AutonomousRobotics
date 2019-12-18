@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
   std_msgs
+  hw1
+  moveit_ros_planning_interface
 )
 
 ## System dependencies are found with CMake's conventions
@@ -119,6 +121,10 @@ include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
 )
+
+add_executable(hw2 src/hw2.cpp src/Task.cpp)
+
+target_link_libraries(hw2 ${catkin_LIBRARIES})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

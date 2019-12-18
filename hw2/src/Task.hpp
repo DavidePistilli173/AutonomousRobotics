@@ -5,6 +5,12 @@
 
 #include "hw1/poseArray.h"
 
+enum class Argument
+{
+    PATH,
+    TOTAL
+};
+
 class Task
 {
 public:
@@ -15,9 +21,10 @@ public:
     /* Run the target detection. */
     void run();
 
-    static constexpr char NODE_NAME[] = "hw2";
-    static constexpr char POSES_TOPIC[] = "hw1_target_objects";
-    static constexpr int Q_LEN = 1000;
+    static const std::string NODE_NAME;
+    static const std::string POSES_TOPIC;
+    static const std::string PLANNING_GROUP;
+    static const int Q_LEN = 1000;
 
 private:
     static void _moveManipulator(const hw1::poseArray::ConstPtr &msg);

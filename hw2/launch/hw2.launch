@@ -1,0 +1,5 @@
+<launch>
+    <arg name="path" value="$(find hw2)"/>
+    <param name="robot_description" command="$(find xacro)/xacro $(find ar_arena)/urdf/robots/ur/ur5.urdf.xacro"/>
+    <node name="hw2" pkg="hw2" type="hw2" args="$(arg path)" output="screen"/>
+</launch>
