@@ -82,10 +82,10 @@ void Task::_moveManipulator(const hw1::poseArray::ConstPtr &msg)
     const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
 
     // We can print the name of the reference frame for this robot.
-    ROS_INFO_NAMED("tutorial", "Reference frame: %s", move_group.getPlanningFrame().c_str());
+    ROS_INFO("Reference frame: %s", move_group.getPlanningFrame().c_str());
 
     // We can also print the name of the end-effector link for this group.
-    ROS_INFO_NAMED("tutorial", "End effector link: %s", move_group.getEndEffectorLink().c_str());
+    ROS_INFO("End effector link: %s", move_group.getEndEffectorLink().c_str());
 
     geometry_msgs::Pose reference_pose;
     reference_pose.orientation.w = 1.0;

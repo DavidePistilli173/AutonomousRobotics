@@ -6,12 +6,12 @@
     <arg name="icp_max_correspondence_distance" value="2"/>
     <arg name="icp_ransac_iterations" value="750"/>
     <arg name="icp_inlier_threshold" value="0.01"/>
-    <arg name="simulation_min_x" value="0"/>
-    <arg name="simulation_max_x" value="0.5"/>
-    <arg name="simulation_min_y" value="-0.55"/>
-    <arg name="simulation_max_y" value="0.6"/>
-    <arg name="simulation_min_z" value="0.34"/>
-    <arg name="simulation_max_z" value="1.12"/>
+    <arg name="simulation_min_x" value="-0.58"/>
+    <arg name="simulation_max_x" value="0.55"/>
+    <arg name="simulation_min_y" value="-0.97"/>
+    <arg name="simulation_max_y" value="-0.2"/>
+    <arg name="simulation_min_z" value="0.01"/>
+    <arg name="simulation_max_z" value="0.3"/>
     <arg name="real_min_x" value="-0.58"/>
     <arg name="real_max_x" value="0.5"/>
     <arg name="real_min_y" value="-0.95"/>

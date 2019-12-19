@@ -216,7 +216,7 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
         }
         else
         {
-            transformStamped = tfBuffer.lookupTransform("camera_link", "base_link", ros::Time(0));
+            transformStamped = tfBuffer.lookupTransform("camera_ir_optical_frame", "base_link", ros::Time(0));
             tf2::doTransform(*msg, *transformedMsg, transformStamped);
             pcl::fromROSMsg(*transformedMsg, *transformedPointCloud);
         }
@@ -257,11 +257,6 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
     tableFilter.setFilterFieldName("x");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr outputCloud3(new pcl::PointCloud<pcl::PointXYZRGB>);
     tableFilter.filter(*outputCloud3);
-
-    pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
-    viewer.showCloud(outputCloud3);
-    while (!viewer.wasStopped())
-    {}
 
     /* Convert RGB to HSV. */
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr hsvCloud (new pcl::PointCloud<pcl::PointXYZHSV>);
