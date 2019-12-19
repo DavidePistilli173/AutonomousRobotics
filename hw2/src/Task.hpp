@@ -1,6 +1,8 @@
 #ifndef TASK_HPP
 #define TASK_HPP
 
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <vector>
 
 #include "hw1/poseArray.h"
@@ -14,7 +16,9 @@ enum class Argument
 class Task
 {
 public:
-    Task();
+    Task(moveit::planning_interface::MoveGroupInterface move_group,
+        moveit::planning_interface::PlanningSceneInterface planning_scene_interface,
+        const robot_state::JointModelGroup* _joint_model_group);
 
     /* Initialise the ros node and target list. */
     bool init(int argc, char** argv);
@@ -29,7 +33,13 @@ public:
 private:
     static void _moveManipulator(const hw1::poseArray::ConstPtr &msg);
 
+    static Task* _currentTask;
+
     static std::vector<hw1::pose> _targets;
+
+    moveit::planning_interface::MoveGroupInterface _move_group;
+    moveit::planning_interface::PlanningSceneInterface _planning_scene_interface;
+    const robot_state::JointModelGroup* _joint_model_group;
 };
 
 #endif

@@ -1,6 +1,3 @@
-#include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
-
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_msgs/DisplayTrajectory.h>
 
@@ -16,13 +13,20 @@
 const std::string Task::NODE_NAME = "hw2";
 const std::string Task::POSES_TOPIC = "hw1_target_objects";
 const std::string Task::PLANNING_GROUP = "manipulator";
+Task* Task::_currentTask;
 std::vector<hw1::pose> Task::_targets;
 
-Task::Task(){}
+Task::Task(moveit::planning_interface::MoveGroupInterface move_group,
+        moveit::planning_interface::PlanningSceneInterface planning_scene_interface,
+        const robot_state::JointModelGroup* _joint_model_group) :
+        _move_group(move_group)
+{
+    
+}
 
 bool Task::init(int argc, char** argv)
 {
-    ros::init(argc, argv, NODE_NAME);
+    _currentTask = this;
     return true;
 }
 
@@ -40,6 +44,7 @@ void Task::run()
 void Task::_moveManipulator(const hw1::poseArray::ConstPtr &msg)
 {
     /* Update object poses. */
+    ROS_INFO("Updating object poses.");
     for (const auto &object : msg->objects)
     {
         int i = 0;
@@ -47,6 +52,7 @@ void Task::_moveManipulator(const hw1::poseArray::ConstPtr &msg)
 
         if (i < _targets.size())
         {
+            ROS_INFO("Updating target: %s", object.name.c_str());
             _targets[i].coordinates.x = object.coordinates.x;
             _targets[i].coordinates.y = object.coordinates.y;
             _targets[i].coordinates.z = object.coordinates.z;
@@ -58,6 +64,7 @@ void Task::_moveManipulator(const hw1::poseArray::ConstPtr &msg)
         }
         else
         {
+            ROS_INFO("Adding new target: %s", object.name.c_str());
             hw1::pose newObject;
 
             newObject.name = object.name;
@@ -76,16 +83,11 @@ void Task::_moveManipulator(const hw1::poseArray::ConstPtr &msg)
         
     }
 
-    moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
-    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-
-    const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
-
     // We can print the name of the reference frame for this robot.
-    ROS_INFO("Reference frame: %s", move_group.getPlanningFrame().c_str());
+    ROS_INFO("Reference frame: %s", _move_group.getPlanningFrame().c_str());
 
     // We can also print the name of the end-effector link for this group.
-    ROS_INFO("End effector link: %s", move_group.getEndEffectorLink().c_str());
+    ROS_INFO("End effector link: %s", _move_group.getEndEffectorLink().c_str());
 
     geometry_msgs::Pose reference_pose;
     reference_pose.orientation.w = 1.0;
