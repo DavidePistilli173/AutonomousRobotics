@@ -1,6 +1,9 @@
 <launch>
     <arg name="path" value="$(find hw2)"/>
-    <arg name="ur5_ns" value="/ur5"/>
-    <remap from="robot_description" to="/ur5/robot_description"/>
-    <node name="hw2" pkg="hw2" type="hw2" args="$(arg path)" output="screen"/>
+    <!--<remap from="robot_description" to="/ur5/robot_description"/>
+    <remap from="move_group" to="/ur5/move_group"/>-->
+    <remap from="hw1_target_objects" to="/hw1_target_objects"/>
+    <group ns="/ur5">
+        <node name="hw2" pkg="hw2" type="hw2" args="$(arg path)" output="screen"/>
+    </group>
 </launch>
