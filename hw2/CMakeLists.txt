@@ -12,6 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   hw1
+  tf2
+  tf2_ros
+  tf2_msgs
+  tf2_sensor_msgs
   moveit_ros_planning_interface
 )
 
