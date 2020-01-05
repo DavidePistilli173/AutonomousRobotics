@@ -2,6 +2,6 @@
     <arg name="path" value="$(find hw2)"/>
     <remap from="hw1_target_objects" to="/hw1_target_objects"/>
     <group ns="/ur5">
-        <node name="hw2" pkg="hw2" type="hw2" args="$(arg path)" output="screen"/>
+        <node name="hw2_task" pkg="hw2" type="hw2_task" args="$(arg path)" output="screen"/>
     </group>
 </launch>

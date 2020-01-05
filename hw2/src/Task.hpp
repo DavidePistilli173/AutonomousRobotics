@@ -14,6 +14,13 @@ enum class Argument
     TOTAL
 };
 
+enum class CollisionMeshes
+{
+    HEX,
+    TRIANGLE,
+    CUBE
+};
+
 class Task
 {
 public:
@@ -33,6 +40,8 @@ private:
     static void _moveManipulator(const hw1::poseArray::ConstPtr &msg);
 
     static std::vector<hw1::pose> _targets;
+    static std::vector<shape_msgs::Mesh> _collisionMeshes;
+    static std::string _path;
 };
 
 #endif

@@ -126,9 +126,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(hw2 src/hw2.cpp src/Task.cpp)
+add_executable(hw2_task src/hw2.cpp src/Task.cpp)
 
-target_link_libraries(hw2 ${catkin_LIBRARIES})
+target_link_libraries(hw2_task ${catkin_LIBRARIES})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
