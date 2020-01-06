@@ -19,8 +19,13 @@
 const std::string Task::NODE_NAME = "hw2_task";
 const std::string Task::POSES_TOPIC = "hw1_target_objects";
 const std::string Task::PLANNING_GROUP = "manipulator";
+const std::string Task::GRIPPER_TOPIC = "/left_hand/command";
+robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput Task::_openGripper;
+robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput Task::_closeGripper;
+
 std::vector<hw1::pose> Task::_targets;
 std::vector<shape_msgs::Mesh> Task::_collisionMeshes;
+std::vector<moveit_msgs::CollisionObject> Task::_collisionObjects;
 std::string Task::_path;
 
 Task::Task()
@@ -34,21 +39,31 @@ bool Task::init(int argc, char** argv)
     std::cout << _path << std::endl;
 
     //shapes::Mesh* m = shapes::createMeshFromResource("file://" + _path + "/meshes/hexagon.stl");
-    shapes::Mesh* m = shapes::createMeshFromResource("file:///home/cjm036653/Robotics-WS/src/Lab/hw2/meshes/hexagon.stl");
+    shapes::Mesh* m = shapes::createMeshFromResource("package://hw2/meshes/hexagon.stl");
     shapes::ShapeMsg mesh_msg; //create a shape msg
     shapes::constructMsgFromShape(m,mesh_msg); //convert shape into a shape msg
-    _collisionMeshes[static_cast<int>(CollisionMeshes::HEX)] = boost::get<shape_msgs::Mesh>(mesh_msg); // shape msg is assigned to mesh msg
-    /*
-    m = shapes::createMeshFromResource("file://" + _path + "/meshes/triangle.stl");
-    mesh_msg; //create a shape msg
-    shapes::constructMsgFromShape(m,mesh_msg); //convert shape into a shape msg
-    _collisionMeshes[static_cast<int>(CollisionMeshes::TRIANGLE)] = boost::get<shape_msgs::Mesh>(mesh_msg); // shape msg is assigned to mesh msg
+    _collisionMeshes.push_back(boost::get<shape_msgs::Mesh>(mesh_msg)); // shape msg is assigned to mesh msg
 
-    m = shapes::createMeshFromResource("file://" + _path + "/meshes/cube.stl");
+    m = shapes::createMeshFromResource("package://hw2/meshes/triangle.stl");
     mesh_msg; //create a shape msg
     shapes::constructMsgFromShape(m,mesh_msg); //convert shape into a shape msg
-    _collisionMeshes[static_cast<int>(CollisionMeshes::CUBE)] = boost::get<shape_msgs::Mesh>(mesh_msg); // shape msg is assigned to mesh msg
-    */
+    _collisionMeshes.push_back(boost::get<shape_msgs::Mesh>(mesh_msg)); // shape msg is assigned to mesh msg
+
+    m = shapes::createMeshFromResource("package://hw2/meshes/cube.stl");
+    mesh_msg; //create a shape msg
+    shapes::constructMsgFromShape(m,mesh_msg); //convert shape into a shape msg
+    _collisionMeshes.push_back(boost::get<shape_msgs::Mesh>(mesh_msg)); // shape msg is assigned to mesh msg
+
+    _openGripper.rACT = 1;
+    _openGripper.rGTO = 1;
+    _openGripper.rSPA = 200;
+    
+    _closeGripper.rACT = 1;
+    _closeGripper.rGTO = 1;
+    _closeGripper.rPRA = 250;
+    _closeGripper.rSPA = 200;
+    _closeGripper.rFRA = 200;
+    
     return true;
 }
 
@@ -56,24 +71,28 @@ void Task::run()
 {
     ros::NodeHandle n;
     ros::Subscriber poses = n.subscribe(POSES_TOPIC, Q_LEN, _moveManipulator);
+    ros::Publisher gripper = n.advertise<robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput>(GRIPPER_TOPIC, Q_LEN);
+    //ros::ServiceClient gazeboGrip = n.serviceClient<intro_tutorial::srv1>("add_3_ints");
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
     tf2_ros::Buffer tfBuffer;
     tf2_ros::TransformListener tfListener(tfBuffer);
 
+    moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+    const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+
+    // We can print the name of the reference frame for this robot.
+    ROS_INFO("Reference frame: %s", move_group.getPlanningFrame().c_str());
+
+    // We can also print the name of the end-effector link for this group.
+    ROS_INFO("End effector link: %s", move_group.getEndEffectorLink().c_str());
+
+    planning_scene_interface.addCollisionObjects(_collisionObjects);
+
     while (ros::ok())
     {
-        moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
-        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-        const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
-
-        // We can print the name of the reference frame for this robot.
-        ROS_INFO("Reference frame: %s", move_group.getPlanningFrame().c_str());
-
-        // We can also print the name of the end-effector link for this group.
-        ROS_INFO("End effector link: %s", move_group.getEndEffectorLink().c_str());
-
         for (const auto& target : _targets)
         {
             moveit::core::RobotStatePtr current_state = move_group.getCurrentState();
@@ -86,6 +105,7 @@ void Task::run()
             joint_group_positions[4] = 1.60192;
             joint_group_positions[5] = 1.54684;
             move_group.setJointValueTarget(joint_group_positions);
+            ROS_INFO("Moving to reference position.");
 
             /*
             for (const auto& joint : move_group.getCurrentJointValues())
@@ -123,6 +143,7 @@ void Task::run()
             aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
 
             move_group.setPoseTarget(aboveObjectPose);
+            ROS_INFO("Moving above target object.");
             success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
             if (!success)
             {
@@ -130,19 +151,41 @@ void Task::run()
             }
             move_group.execute(myPlan);
 
-            moveit_msgs::CollisionObject targetCollisionObject;
-
-            /*
+            gripper.publish(_openGripper);
             geometry_msgs::PoseStamped objectPose = move_group.getCurrentPose();
-            objectPose.pose.position.z -= 0.2;
+            objectPose.pose.position.z -= 0.15;
             move_group.setPoseTarget(objectPose);
+            ROS_INFO("Grasping object.");
             success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
             if (!success)
             {
                 ROS_WARN("Planning to reference pose failed.");
             }
             move_group.execute(myPlan);
-            */
+            gripper.publish(_closeGripper);
+            move_group.attachObject(target.name);
+
+            current_state = move_group.getCurrentState();
+            std::vector<double> dockingStation1;
+            current_state->copyJointGroupPositions(joint_model_group, dockingStation1);
+            dockingStation1[0] = 0.0958103;  // radians
+            dockingStation1[1] = -1.06255;
+            dockingStation1[2] = 1.20556;
+            dockingStation1[3] = -1.72927;
+            dockingStation1[4] = -1.53248;
+            dockingStation1[5] = 1.66772;
+            move_group.setJointValueTarget(dockingStation1);
+            ROS_INFO("Moving to docking station 1.");
+            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            if (!success)
+            {
+                ROS_WARN("Planning to reference pose failed.");
+            }
+            move_group.execute(myPlan);
+
+            ros::V_string targetString;
+            targetString.push_back(target.name);
+            planning_scene_interface.removeCollisionObjects(targetString);
         }
     }
 }
@@ -167,6 +210,17 @@ void Task::_moveManipulator(const hw1::poseArray::ConstPtr &msg)
             _targets[i].rotation.x = object.rotation.x;
             _targets[i].rotation.y = object.rotation.y;
             _targets[i].rotation.z = object.rotation.z;
+
+            _collisionObjects[i].mesh_poses[0].position.x = _targets[i].coordinates.x;
+            _collisionObjects[i].mesh_poses[0].position.y = _targets[i].coordinates.y;
+            _collisionObjects[i].mesh_poses[0].position.z = _targets[i].coordinates.z;
+            _collisionObjects[i].mesh_poses[0].orientation.w = _targets[i].rotation.w;
+            _collisionObjects[i].mesh_poses[0].orientation.x = _targets[i].rotation.x;
+            _collisionObjects[i].mesh_poses[0].orientation.y = _targets[i].rotation.y;
+            _collisionObjects[i].mesh_poses[0].orientation.z = _targets[i].rotation.z;
+            
+            _collisionObjects[i].operation = _collisionObjects[i].ADD;
+            _collisionObjects[i].id = _targets[i].name;
         }
         else
         {
@@ -185,6 +239,35 @@ void Task::_moveManipulator(const hw1::poseArray::ConstPtr &msg)
             newObject.rotation.z = object.rotation.z;
 
             _targets.push_back(newObject);
+
+            moveit_msgs::CollisionObject a;
+            _collisionObjects.push_back(a);
+            _collisionObjects[i].meshes.resize(1);
+            if (object.name.substr(0, object.name.size()-2) == "yellow_cylinder")
+            {
+                _collisionObjects[i].meshes[0] = _collisionMeshes[static_cast<int>(CollisionMeshes::HEX)];
+            }
+            else if (object.name.substr(0, object.name.size()-2) == "green_prism" ||
+                     object.name.substr(0, object.name.size()-2) == "red_prism")
+            {
+                _collisionObjects[i].meshes[0] = _collisionMeshes[static_cast<int>(CollisionMeshes::TRIANGLE)];
+            }
+            else
+            {
+                _collisionObjects[i].meshes[0] = _collisionMeshes[static_cast<int>(CollisionMeshes::CUBE)];
+            }
+
+            _collisionObjects[i].mesh_poses.resize(1);
+            _collisionObjects[i].mesh_poses[0].position.x = _targets[i].coordinates.x;
+            _collisionObjects[i].mesh_poses[0].position.y = _targets[i].coordinates.y;
+            _collisionObjects[i].mesh_poses[0].position.z = _targets[i].coordinates.z;
+            _collisionObjects[i].mesh_poses[0].orientation.w = _targets[i].rotation.w;
+            _collisionObjects[i].mesh_poses[0].orientation.x = _targets[i].rotation.x;
+            _collisionObjects[i].mesh_poses[0].orientation.y = _targets[i].rotation.y;
+            _collisionObjects[i].mesh_poses[0].orientation.z = _targets[i].rotation.z;
+            
+            _collisionObjects[i].operation = _collisionObjects[i].ADD;
+            _collisionObjects[i].id = _targets[i].name;
         }
     }
 }

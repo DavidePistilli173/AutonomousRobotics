@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_msgs
   tf2_sensor_msgs
   moveit_ros_planning_interface
+  robotiq_3f_gripper_articulated_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -126,7 +127,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(hw2_task src/hw2.cpp src/Task.cpp)
+add_executable(hw2_task src/hw2_task.cpp src/Task.cpp)
 
 target_link_libraries(hw2_task ${catkin_LIBRARIES})
 
