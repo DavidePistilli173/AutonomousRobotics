@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_sensor_msgs
   moveit_ros_planning_interface
   robotiq_3f_gripper_articulated_msgs
+  gazebo_ros_link_attacher
 )
 
 ## System dependencies are found with CMake's conventions
