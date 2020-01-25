@@ -1,0 +1,19 @@
+<launch>
+    <arg name="path" value="$(find hw3)"/>
+    <arg name="simulation" default="0"/>
+    <group ns="/marrtino">
+    <node name="hw3" pkg="hw3" type="hw3" args="$(arg path) $(arg simulation)" output="screen"/>
+    <!--
+        <node name="map_server" pkg="map_server" type="map_server"
+            args="$(find ar_arena)/maps/arena.yaml" output="screen"/>
+            <include file="$(find amcl)/examples/amcl_diff.launch" />
+            <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+            <rosparam file="$(find hw3)/config/costmap_common.yaml" command="load" ns="global_costmap" />
+            <rosparam file="$(find hw3)/config/costmap_common.yaml" command="load" ns="local_costmap" />
+            <rosparam file="$(find hw3)/config/costmap_local.yaml" command="load" />
+            <rosparam file="$(find hw3)/config/costmap_global_static.yaml" command="load" />
+            <rosparam file="$(find hw3)/config/planner.yaml" command="load" />
+        </node>
+    -->
+    </group>
+</launch>
