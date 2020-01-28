@@ -21,6 +21,7 @@ public:
     /* Run the target detection. */
     void run();
 
+    static constexpr double PI = 3.1415926536;
     /* Queue length for ROS messages. */
     static constexpr int Q_LEN = 1000;
     /* Source topic name. */
@@ -29,9 +30,12 @@ public:
     static constexpr char DEST_TOPIC_NAME[] = "hw1_target_objects";
     /* Current node name. */
     static constexpr char NODE_NAME[] = "hw3";
+    static constexpr char MOTOR_TOPIC[] = "move_base/cmd_vel";
 
 private:
     move_base_msgs::MoveBaseGoal _corridorEnd;
+    void _turn(float angle, double speed, ros::Publisher& motor_control);
+    void _set_velocities(float lin_vel, float ang_vel, ros::Publisher& motor_control);
 };
 
 #endif
