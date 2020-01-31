@@ -36,6 +36,7 @@ std::vector<shape_msgs::Mesh> Task::_collisionMeshes;
 std::vector<moveit_msgs::CollisionObject> Task::_collisionObjects;
 std::string Task::_path;
 std::vector<double> Task::_referencePosition;
+std::vector<double> Task::_aboveDockingStation1;
 std::vector<double> Task::_dockingStation1;
 
 bool Task::_simulation;
@@ -50,6 +51,7 @@ bool Task::init(int argc, char** argv)
     _path = argv[static_cast<int>(Argument::PATH)];
     _simulation = static_cast<bool>(std::atoi(argv[static_cast<int>(Argument::SIMULATION)]));
 
+    ROS_INFO("Loading meshes.");
     /* Load hexagon mesh. */
     shapes::Mesh* m = shapes::createMeshFromResource("package://hw2/meshes/hexagon.stl");
     shapes::ShapeMsg mesh_msg;
@@ -103,7 +105,32 @@ bool Task::init(int argc, char** argv)
     }
     else
     {
-        // Reference position real
+        /* Set the reference position. */
+        _referencePosition.resize(NUM_MANIPULATOR_JOINTS);
+        _referencePosition[0] = -1.61; // Base joint
+        _referencePosition[1] = -1.38;
+        _referencePosition[2] = 1.24;
+        _referencePosition[3] = -1.44;
+        _referencePosition[4] = -1.61; // Joint for prism, 
+        _referencePosition[5] = -0.02;
+
+		/* Set the position above docking station 1. */
+        _aboveDockingStation1.resize(NUM_MANIPULATOR_JOINTS);
+        _aboveDockingStation1[0] = -0.02; // Base joint
+        _aboveDockingStation1[1] = -1.38;
+        _aboveDockingStation1[2] = 1.24;
+        _aboveDockingStation1[3] = -1.44;
+        _aboveDockingStation1[4] = -1.61;
+        _aboveDockingStation1[5] = -0.02;
+
+        /* Set the position of the docking station 1. */
+        _dockingStation1.resize(NUM_MANIPULATOR_JOINTS);
+        _dockingStation1[0] = -0.02;
+        _dockingStation1[1] = -0.77;
+        _dockingStation1[2] = 0.91;
+        _dockingStation1[3] = -1.72;
+        _dockingStation1[4] = -1.61;
+        _dockingStation1[5] = -0.02;
     }
 
     for (auto& element : _completedTargets)
@@ -116,22 +143,36 @@ bool Task::init(int argc, char** argv)
 
 void Task::run()
 {
+    ROS_INFO("Initialising topics.");
     ros::NodeHandle n;
     /* Subscribe to the topic published by Homework 1. */
     ros::Subscriber poses = n.subscribe(POSES_TOPIC, Q_LEN, _updateTargets);
     /* Publish gripper opening/closing messages. */
-    ros::Publisher gripper = n.advertise<robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput>(GRIPPER_TOPIC, Q_LEN);
+    ros::Publisher gripper;
+    if (_simulation)
+    {
+        gripper = n.advertise<robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput>(GRIPPER_TOPIC, Q_LEN);
+    }
     /* Services related to the Gazebo plugin. */
-    ros::ServiceClient gazeboAttacher = n.serviceClient<gazebo_ros_link_attacher::Attach>("/link_attacher_node/attach");
-    ros::ServiceClient gazeboDetacher = n.serviceClient<gazebo_ros_link_attacher::Attach>("/link_attacher_node/detach");
+    ros::ServiceClient gazeboAttacher;
+    ros::ServiceClient gazeboDetacher;
+    if (_simulation)
+    {
+        gazeboAttacher = n.serviceClient<gazebo_ros_link_attacher::Attach>("/link_attacher_node/attach");
+        gazeboDetacher = n.serviceClient<gazebo_ros_link_attacher::Attach>("/link_attacher_node/detach");
+    }
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
+    ROS_INFO("Initialising tf.");
     tf2_ros::Buffer tfBuffer;
     tf2_ros::TransformListener tfListener(tfBuffer);
 
+    ROS_INFO("Initialising move group.");
     moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+    ROS_INFO("Initialising planning interface.");
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+    ROS_INFO("Initialising joint model group.");
     const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
 
     // We can print the name of the reference frame for this robot.
@@ -146,7 +187,7 @@ void Task::run()
     //current_state->copyJointGroupPositions(joint_model_group, _referencePosition);
 
     ros::Duration(2.0).sleep(); // Sleep for 1 second.
-
+    moveit::planning_interface::MoveGroupInterface::Plan myPlan;
     bool done = false;
     while (!done)
     {
@@ -155,26 +196,22 @@ void Task::run()
         {
             if (_completedTargets[target.id])
             {
+                ROS_WARN("Skipping object %d", target.id);
                  ++movedTargets;
                  continue;
             }
 
+            ROS_INFO("Trying to get object %d", target.id);
             /* Move to the reference position. */
-            move_group.setJointValueTarget(_referencePosition);
-            ROS_INFO("Moving to reference position.");
-            moveit::planning_interface::MoveGroupInterface::Plan myPlan;
-            bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!success)
-            {
-                ROS_WARN("Planning to reference pose failed.");
-            }
-            move_group.execute(myPlan);
+			if (!_moveToReferencePosition(move_group)) return;
+
+			ros::Duration(1.0).sleep();
 
             /* Move above the target object. */
             geometry_msgs::Pose target_pose;
             geometry_msgs::Pose aboveObjectPose;
             geometry_msgs::TransformStamped transformStamped;
-            transformStamped = tfBuffer.lookupTransform("camera_rgb_optical_frame", "world", ros::Time(0));
+            transformStamped = tfBuffer.lookupTransform("world", "camera_rgb_optical_frame", ros::Time(0));
 
             target_pose.position.x = target.coordinates.x;
             target_pose.position.y = target.coordinates.y;
@@ -182,8 +219,22 @@ void Task::run()
             geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
 
             tf2::doTransform(target_pose, aboveObjectPose, transformStamped);
-            aboveObjectPose.position.z += 0.3;
-            aboveObjectPose.position.x += 0.1;
+			if (_simulation)
+			{
+	            aboveObjectPose.position.z += 0.3;
+			}
+			else
+			{
+				aboveObjectPose.position.z += 0.23;
+			}
+			if (_simulation)
+			{
+				aboveObjectPose.position.x += 0.1;	
+			}
+			else
+			{
+				aboveObjectPose.position.x += 0.0075;
+			}
             aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
             aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
             aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
@@ -191,12 +242,22 @@ void Task::run()
 
             move_group.setPoseTarget(aboveObjectPose);
             ROS_INFO("Moving above target object.");
-            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+			move_group.setStartStateToCurrentState();
+            bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
             if (!success)
             {
-                ROS_WARN("Planning to reference pose failed.");
+                ROS_WARN("Failed to move above target object.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
             }
-            move_group.execute(myPlan);
+            if (!move_group.execute(myPlan))
+			{
+				ROS_WARN("Failed to execute plan.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
+			}
+
+			ros::Duration(1.0).sleep();
 
             /* Grasp the target object. */
             if (_simulation)
@@ -212,17 +273,25 @@ void Task::run()
             }
             else
             {
-                objectPose.pose.position.z -= 0.15;
+                objectPose.pose.position.z -= 0.125;
             }
             move_group.setPoseTarget(objectPose);
             ROS_INFO("Grasping object.");
+			move_group.setStartStateToCurrentState();
             success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
             if (!success)
             {
-                ROS_WARN("Planning to reference pose failed.");
+                ROS_WARN("Failed to move to grasping position.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
             }
-            ROS_WARN("target.name %s", target.name.c_str());
-            move_group.execute(myPlan);
+            if (!move_group.execute(myPlan))
+			{
+				ROS_WARN("Failed to execute plan.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
+			}
+			ros::Duration(1.0).sleep();
             move_group.attachObject(target.name); // Attach the target collision object to the manipulator.
             /* Gripper related code. */
             if (_simulation)
@@ -250,26 +319,51 @@ void Task::run()
             }
 
             /* Return to the reference position. */
-            move_group.setJointValueTarget(_referencePosition);
+            if (!_moveToReferencePosition(move_group)) return;
+			ros::Duration(1.0).sleep();
+
+			/* Moving above docking station 1. */
+			current_state = move_group.getCurrentState();
+            move_group.setJointValueTarget(_aboveDockingStation1);
+            ROS_INFO("Moving above docking station 1.");
+			move_group.setStartStateToCurrentState();
             success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
             if (!success)
             {
-                ROS_WARN("Planning to reference pose failed.");
+                ROS_WARN("Failed to move above docking station 1.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
             }
-            move_group.execute(myPlan);
+            if (!move_group.execute(myPlan))
+			{
+				ROS_WARN("Failed to execute plan.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
+			}
+			ros::Duration(1.0).sleep();
 
             /* Move to docking station 1. */
             current_state = move_group.getCurrentState();
             move_group.setJointValueTarget(_dockingStation1);
             ROS_INFO("Moving to docking station 1.");
+			move_group.setStartStateToCurrentState();
             success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
             if (!success)
             {
-                ROS_WARN("Planning to reference pose failed.");
+                ROS_WARN("Failed to move to docking station 1.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
             }
-            move_group.execute(myPlan);
+            if (!move_group.execute(myPlan))
+			{
+				ROS_WARN("Failed to execute plan.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
+			}
+			ros::Duration(1.0).sleep();
 
             /* Release the target. */
+            ROS_INFO("Completed movement of object %d.", target.id);
             _completedTargets[target.id] = true;
             if (_simulation)
             {
@@ -289,27 +383,37 @@ void Task::run()
             {
                 // Real release.
             }
+
+			/* Moving above docking station 1. */
+			current_state = move_group.getCurrentState();
+            move_group.setJointValueTarget(_aboveDockingStation1);
+            ROS_INFO("Moving above docking station 1.");
+			move_group.setStartStateToCurrentState();
+            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            if (!success)
+            {
+                ROS_WARN("Failed to move above docking station 1.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
+            }
+            if (!move_group.execute(myPlan))
+			{
+				ROS_WARN("Failed to execute plan.");
+				if (!_moveToReferencePosition(move_group)) return;
+				continue;
+			}
+			ros::Duration(1.0).sleep();
         }
 
         if (movedTargets == _targets.size()) done = true;
     }
 
     /* Move to the reference position. */
-    move_group.setJointValueTarget(_referencePosition);
-    ROS_INFO("Moving to reference position.");
-    moveit::planning_interface::MoveGroupInterface::Plan myPlan;
-    bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    if (!success)
-    {
-        ROS_WARN("Planning to reference pose failed.");
-    }
-    move_group.execute(myPlan);
+    if (!_moveToReferencePosition(move_group)) return;
 }
 
 void Task::_updateTargets(const hw1::poseArray::ConstPtr &msg)
 {
-    /* Update object poses. */
-    ROS_INFO("[CALLBACK] Updating object poses.");
     /* Loop through all detections. */
     for (const auto &object : msg->objects)
     {
@@ -318,9 +422,8 @@ void Task::_updateTargets(const hw1::poseArray::ConstPtr &msg)
         while (i < _targets.size() && _targets[i].name != object.name) ++i;
 
         /* If the current detection is already a target, update its pose. */
-        if (i < _targets.size())
+        if (i < _targets.size() && !_completedTargets[object.id])
         {
-            ROS_INFO("[CALLBACK] Updating target: %s", object.name.c_str());
             _targets[i].coordinates.x = object.coordinates.x;
             _targets[i].coordinates.y = object.coordinates.y;
             _targets[i].coordinates.z = object.coordinates.z;
@@ -337,18 +440,13 @@ void Task::_updateTargets(const hw1::poseArray::ConstPtr &msg)
             _collisionObjects[i].mesh_poses[0].orientation.x = _targets[i].rotation.x;
             _collisionObjects[i].mesh_poses[0].orientation.y = _targets[i].rotation.y;
             _collisionObjects[i].mesh_poses[0].orientation.z = _targets[i].rotation.z;
-            
-            _collisionObjects[i].operation = _collisionObjects[i].ADD;
-            _collisionObjects[i].id = _targets[i].name;
         }
         /* If the current detection has not already been moved, add it to the targets. */
-        else if (!_completedTargets[object.id])
+        else
         {
-            ROS_INFO("[CALLBACK] Adding new target: %s", object.name.c_str());
             hw1::pose newObject;
 
             newObject.name = object.name;
-            ROS_WARN("newObject.name %s", newObject.name.c_str());
             newObject.id = object.id;
 
             newObject.coordinates.x = object.coordinates.x;
@@ -450,4 +548,24 @@ std::string Task::_getModelName(const int objectId)
         return "";
         break;
     }
+}
+
+bool Task::_moveToReferencePosition(moveit::planning_interface::MoveGroupInterface& move_group)
+{
+	move_group.setJointValueTarget(_referencePosition);
+    ROS_INFO("Moving to reference position.");
+    moveit::planning_interface::MoveGroupInterface::Plan myPlan;
+	move_group.setStartStateToCurrentState();
+    bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    if (!success)
+    {
+        ROS_ERROR("Planning to reference pose failed.");
+		return false;
+    }
+    if (!move_group.execute(myPlan))
+	{
+		ROS_ERROR("Failed to return to reference position.");
+		return false;
+	}
+	return true;
 }

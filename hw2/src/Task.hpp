@@ -48,6 +48,8 @@ private:
     static void _updateTargets(const hw1::poseArray::ConstPtr &msg);
     static std::string _getModelName(const int objectId);
 
+	bool _moveToReferencePosition(moveit::planning_interface::MoveGroupInterface& move_group);
+
     static robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput _openGripper;
     static robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput _closeGripper;
     static gazebo_ros_link_attacher::Attach _gazeboPluginRequest;
@@ -57,6 +59,7 @@ private:
     static std::vector<shape_msgs::Mesh> _collisionMeshes;
     static std::vector<moveit_msgs::CollisionObject> _collisionObjects;
     static std::vector<double> _referencePosition;
+	static std::vector<double> _aboveDockingStation1;
     static std::vector<double> _dockingStation1;
     static std::string _path;
 

@@ -56,6 +56,7 @@ bool Task1::init(int argc, char** argv)
 
     /* Link each frame_id to its id. */
     int i;
+    int j = 0;
     for (i = ARGC_OFFSET; i < argc; ++i)
     {
         int id = 0;
@@ -69,9 +70,17 @@ bool Task1::init(int argc, char** argv)
             ROS_ERROR("Unknown frame_id: %s", argv[i]);
             return false;
         }
-        _targets[i-1] = id;
+        ROS_INFO("Adding target: %s", frames[id].c_str());
+        _targets[j] = id;
+        ++j;
     }
-    _targetNum = i;
+    _targetNum = j;
+
+    ROS_INFO("Targets: ");
+    for (i = 0; i < _targetNum; ++i)
+    {
+        ROS_INFO("id: %d", _targets[i]);
+    }
 
     std::string fileName = argv[1] + OF_NAME;
     _outputFile.open(fileName);
