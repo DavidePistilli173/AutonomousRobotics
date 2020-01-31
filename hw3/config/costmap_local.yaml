@@ -1,9 +1,13 @@
 global_frame: odom
 rolling_window: true
+lethal_cost: 0.0
+cost_factor: 0.1
+neutral_cost: 233
 
 inflation_layer:
-  inflation_radius:     0.25
+  inflation_radius:     0.01
 
 plugins:
   - {name: obstacle_layer,                  type: "costmap_2d::ObstacleLayer"}
   - {name: inflation_layer,                 type: "costmap_2d::InflationLayer"}
+
