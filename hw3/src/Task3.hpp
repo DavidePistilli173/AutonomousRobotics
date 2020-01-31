@@ -34,6 +34,13 @@ public:
 
 private:
     move_base_msgs::MoveBaseGoal _corridorEnd;
+    move_base_msgs::MoveBaseGoal _entrance;
+    move_base_msgs::MoveBaseGoal _alternativeEntrance;
+    move_base_msgs::MoveBaseGoal _preDockingStation1;
+    move_base_msgs::MoveBaseGoal _preDockingStation2;
+    move_base_msgs::MoveBaseGoal _dockingStation1;
+    move_base_msgs::MoveBaseGoal _dockingStation2;
+    void _move(float distance, double speed, ros::Publisher& motor_control);
     void _turn(float angle, double speed, ros::Publisher& motor_control);
     void _set_velocities(float lin_vel, float ang_vel, ros::Publisher& motor_control);
 };
