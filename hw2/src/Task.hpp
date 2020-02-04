@@ -63,6 +63,8 @@ private:
     static std::vector<double> _dockingStation1;
     static std::string _path;
 
+    bool _objectAttached;
+
     static bool _simulation;
 };
 

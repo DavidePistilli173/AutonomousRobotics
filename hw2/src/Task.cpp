@@ -50,6 +50,7 @@ bool Task::init(int argc, char** argv)
 
     _path = argv[static_cast<int>(Argument::PATH)];
     _simulation = static_cast<bool>(std::atoi(argv[static_cast<int>(Argument::SIMULATION)]));
+    _objectAttached = false;
 
     ROS_INFO("Loading meshes.");
     /* Load hexagon mesh. */
@@ -83,55 +84,32 @@ bool Task::init(int argc, char** argv)
     _gazeboPluginRequest.request.model_name_1 = "ar_ur5";
     _gazeboPluginRequest.request.link_name_1 = "wrist_3_link";
 
-    if (_simulation)
-    {
-        /* Set the reference position. */
-        _referencePosition.resize(NUM_MANIPULATOR_JOINTS);
-        _referencePosition[0] = 1.50301;
-        _referencePosition[1] = -1.79556;
-        _referencePosition[2] = -0.849335;
-        _referencePosition[3] = -2.0492;
-        _referencePosition[4] = 1.60192;
-        _referencePosition[5] = 1.54684;
+    /* Set the reference position. */
+    _referencePosition.resize(NUM_MANIPULATOR_JOINTS);
+    _referencePosition[0] = -1.61; // Base joint
+    _referencePosition[1] = -1.38;
+    _referencePosition[2] = 1.24;
+    _referencePosition[3] = -1.44;
+    _referencePosition[4] = -1.61; // Joint for prism, 
+    _referencePosition[5] = -0.02;
 
-        /* Set the position of the docking station 1. */
-        _dockingStation1.resize(NUM_MANIPULATOR_JOINTS);
-        _dockingStation1[0] = 0.0958103;
-        _dockingStation1[1] = -1.06255;
-        _dockingStation1[2] = 1.20556;
-        _dockingStation1[3] = -1.72927;
-        _dockingStation1[4] = -1.53248;
-        _dockingStation1[5] = 1.66772;
-    }
-    else
-    {
-        /* Set the reference position. */
-        _referencePosition.resize(NUM_MANIPULATOR_JOINTS);
-        _referencePosition[0] = -1.61; // Base joint
-        _referencePosition[1] = -1.38;
-        _referencePosition[2] = 1.24;
-        _referencePosition[3] = -1.44;
-        _referencePosition[4] = -1.61; // Joint for prism, 
-        _referencePosition[5] = -0.02;
+    /* Set the position above docking station 1. */
+    _aboveDockingStation1.resize(NUM_MANIPULATOR_JOINTS);
+    _aboveDockingStation1[0] = -0.02; // Base joint
+    _aboveDockingStation1[1] = -1.38;
+    _aboveDockingStation1[2] = 1.24;
+    _aboveDockingStation1[3] = -1.44;
+    _aboveDockingStation1[4] = -1.61;
+    _aboveDockingStation1[5] = -0.02;
 
-		/* Set the position above docking station 1. */
-        _aboveDockingStation1.resize(NUM_MANIPULATOR_JOINTS);
-        _aboveDockingStation1[0] = -0.02; // Base joint
-        _aboveDockingStation1[1] = -1.38;
-        _aboveDockingStation1[2] = 1.24;
-        _aboveDockingStation1[3] = -1.44;
-        _aboveDockingStation1[4] = -1.61;
-        _aboveDockingStation1[5] = -0.02;
-
-        /* Set the position of the docking station 1. */
-        _dockingStation1.resize(NUM_MANIPULATOR_JOINTS);
-        _dockingStation1[0] = -0.02;
-        _dockingStation1[1] = -0.77;
-        _dockingStation1[2] = 0.91;
-        _dockingStation1[3] = -1.72;
-        _dockingStation1[4] = -1.61;
-        _dockingStation1[5] = -0.02;
-    }
+    /* Set the position of the docking station 1. */
+    _dockingStation1.resize(NUM_MANIPULATOR_JOINTS);
+    _dockingStation1[0] = -0.02;
+    _dockingStation1[1] = -0.77;
+    _dockingStation1[2] = 0.91;
+    _dockingStation1[3] = -1.72;
+    _dockingStation1[4] = -1.61;
+    _dockingStation1[5] = -0.02;
 
     for (auto& element : _completedTargets)
     {
@@ -194,128 +172,161 @@ void Task::run()
         int movedTargets = 0;
         for (auto& target : _targets)
         {
-            if (_completedTargets[target.id])
+            /* If there is no object attached to the manipulator, grab one. */
+            if (!_objectAttached)
             {
-                ROS_WARN("Skipping object %d", target.id);
-                 ++movedTargets;
-                 continue;
-            }
-
-            ROS_INFO("Trying to get object %d", target.id);
-            /* Move to the reference position. */
-			if (!_moveToReferencePosition(move_group)) return;
-
-			ros::Duration(1.0).sleep();
-
-            /* Move above the target object. */
-            geometry_msgs::Pose target_pose;
-            geometry_msgs::Pose aboveObjectPose;
-            geometry_msgs::TransformStamped transformStamped;
-            transformStamped = tfBuffer.lookupTransform("world", "camera_rgb_optical_frame", ros::Time(0));
-
-            target_pose.position.x = target.coordinates.x;
-            target_pose.position.y = target.coordinates.y;
-            target_pose.position.z = target.coordinates.z;
-            geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
-
-            tf2::doTransform(target_pose, aboveObjectPose, transformStamped);
-			if (_simulation)
-			{
-	            aboveObjectPose.position.z += 0.3;
-			}
-			else
-			{
-				aboveObjectPose.position.z += 0.23;
-			}
-			if (_simulation)
-			{
-				aboveObjectPose.position.x += 0.1;	
-			}
-			else
-			{
-				aboveObjectPose.position.x += 0.0075;
-			}
-            aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
-            aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
-            aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
-            aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
-
-            move_group.setPoseTarget(aboveObjectPose);
-            ROS_INFO("Moving above target object.");
-			move_group.setStartStateToCurrentState();
-            bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!success)
-            {
-                ROS_WARN("Failed to move above target object.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
-            }
-            if (!move_group.execute(myPlan))
-			{
-				ROS_WARN("Failed to execute plan.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
-			}
-
-			ros::Duration(1.0).sleep();
-
-            /* Grasp the target object. */
-            if (_simulation)
-            {
-                gripper.publish(_openGripper);
-            }
-            geometry_msgs::PoseStamped objectPose = move_group.getCurrentPose();
-
-            if ((target.id >= 6 && target.id <= 8) ||
-                 target.id >= 13 && target.id <= 15)
-            {
-                objectPose.pose.position.z -= 0.11;
-            }
-            else
-            {
-                objectPose.pose.position.z -= 0.125;
-            }
-            move_group.setPoseTarget(objectPose);
-            ROS_INFO("Grasping object.");
-			move_group.setStartStateToCurrentState();
-            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!success)
-            {
-                ROS_WARN("Failed to move to grasping position.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
-            }
-            if (!move_group.execute(myPlan))
-			{
-				ROS_WARN("Failed to execute plan.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
-			}
-			ros::Duration(1.0).sleep();
-            move_group.attachObject(target.name); // Attach the target collision object to the manipulator.
-            /* Gripper related code. */
-            if (_simulation)
-            {
-                gripper.publish(_closeGripper);
-                std::string modelName = _getModelName(target.id);
-                if (modelName == "")
+                if (_completedTargets[target.id])
                 {
-                    ROS_WARN("Wrong object id.");
+                    ++movedTargets;
+                    continue;
+                }
+
+                ROS_INFO("Trying to get object %d", target.id);
+                /* Move to the reference position. */
+                if (!_moveToReferencePosition(move_group)) return;
+
+                ros::Duration(1.0).sleep();
+
+                /* Move above the target object. */
+                geometry_msgs::Pose target_pose;
+                geometry_msgs::Pose aboveObjectPose;
+                geometry_msgs::TransformStamped transformStamped;
+                transformStamped = tfBuffer.lookupTransform("world", "camera_rgb_optical_frame", ros::Time(0));
+
+                target_pose.position.x = target.coordinates.x;
+                target_pose.position.y = target.coordinates.y;
+                target_pose.position.z = target.coordinates.z;
+                geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
+
+                tf2::doTransform(target_pose, aboveObjectPose, transformStamped);
+                if (_simulation)
+                {
+                    aboveObjectPose.position.z += 0.3;
                 }
                 else
                 {
-                    ROS_INFO("Attaching object %s", modelName.c_str());
-                    _gazeboPluginRequest.request.model_name_2 = modelName + "_clone";
-                    _gazeboPluginRequest.request.link_name_2 = modelName + "_link";
-                    if (!gazeboAttacher.call(_gazeboPluginRequest))
-                    {
-                        ROS_WARN("Could not attach %s to the robot arm.", modelName.c_str());
-                    }  
+                    aboveObjectPose.position.z += 0.23;
                 }
-            }
-            else
-            {
-                // Real grasping.
+                aboveObjectPose.position.x += 0.0075;
+                aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
+                aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
+                aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
+                aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
+
+                move_group.setPoseTarget(aboveObjectPose);
+                ROS_INFO("Moving above target object.");
+                move_group.setStartStateToCurrentState();
+                bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                if (!success)
+                {
+                    ROS_WARN("Failed to move above target object.");
+                    continue;
+                }
+                if (!move_group.execute(myPlan))
+                {
+                    ROS_WARN("Failed to execute plan.");
+                    continue;
+                }
+
+                ros::Duration(1.0).sleep();
+
+                /* Grasp the target object. */
+                if (_simulation)
+                {
+                    gripper.publish(_openGripper);
+                    /* Rotate the gripper. */
+                    double qAngle = acos(target.rotation.w);
+                    double qX = target.rotation.x / sin(qAngle);
+                    double qY = target.rotation.y / sin(qAngle);
+                    double zAngle = 2 * atan(qY/qX);
+                    ROS_WARN("Rotation target: %f", zAngle);
+                    std::vector<double> targetAlignment;
+                    targetAlignment.resize(NUM_MANIPULATOR_JOINTS);
+                    int j = 0;
+                    for (const auto& joint : move_group.getCurrentJointValues())
+                    {
+                        targetAlignment[j] = joint;
+                        ++j;
+                    }
+                    ROS_WARN("Current rotation angle: %f", targetAlignment[NUM_MANIPULATOR_JOINTS - 1]);
+                    targetAlignment[NUM_MANIPULATOR_JOINTS - 1] = zAngle;
+
+                    current_state = move_group.getCurrentState();
+                    move_group.setJointValueTarget(targetAlignment);
+                    ROS_INFO("Align with the target.");
+                    move_group.setStartStateToCurrentState();
+                    success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                    if (!success)
+                    {
+                        ROS_WARN("Failed to align with the target.");
+                        continue;
+                    }
+                    if (!move_group.execute(myPlan))
+                    {
+                        ROS_WARN("Failed to execute plan.");
+                        continue;
+                    }
+                    ros::Duration(1.0).sleep();
+                }
+
+                geometry_msgs::PoseStamped objectPose = move_group.getCurrentPose();
+
+                /* Lower the manipulator arm depending on the object. */
+                /* If the target is a prism. */
+                if ((target.id >= 6 && target.id <= 8) ||
+                    target.id >= 13 && target.id <= 15)
+                {
+                    objectPose.pose.position.z -= 0.08;
+                }
+                /* Otherwise. */
+                else
+                {
+                    objectPose.pose.position.z -= 0.125;
+                }
+                move_group.setPoseTarget(objectPose);
+                ROS_INFO("Grasping object.");
+                move_group.setStartStateToCurrentState();
+                success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                if (!success)
+                {
+                    ROS_WARN("Failed to move to grasping position.");
+                    continue;
+                }
+                if (!move_group.execute(myPlan))
+                {
+                    ROS_WARN("Failed to execute plan.");
+                    continue;
+                }
+                ros::Duration(1.0).sleep();
+                move_group.attachObject(target.name); // Attach the target collision object to the manipulator.
+                /* Gripper related code. */
+                if (_simulation)
+                {
+                    gripper.publish(_closeGripper);
+                    std::string modelName = _getModelName(target.id);
+                    if (modelName == "")
+                    {
+                        ROS_WARN("Wrong object id.");
+                    }
+                    else
+                    {
+                        ROS_INFO("Attaching object %s", modelName.c_str());
+                        _gazeboPluginRequest.request.model_name_2 = modelName + "_clone";
+                        _gazeboPluginRequest.request.link_name_2 = modelName + "_link";
+                        if (!gazeboAttacher.call(_gazeboPluginRequest))
+                        {
+                            ROS_WARN("Could not attach %s to the robot arm.", modelName.c_str());
+                        }
+                        else
+                        {
+                            _objectAttached = true;
+                        }  
+                    }
+                }
+                else
+                {
+                    // Real grasping.
+                }
             }
 
             /* Return to the reference position. */
@@ -327,40 +338,39 @@ void Task::run()
             move_group.setJointValueTarget(_aboveDockingStation1);
             ROS_INFO("Moving above docking station 1.");
 			move_group.setStartStateToCurrentState();
-            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
             if (!success)
             {
                 ROS_WARN("Failed to move above docking station 1.");
-				if (!_moveToReferencePosition(move_group)) return;
 				continue;
             }
             if (!move_group.execute(myPlan))
 			{
 				ROS_WARN("Failed to execute plan.");
-				if (!_moveToReferencePosition(move_group)) return;
 				continue;
 			}
 			ros::Duration(1.0).sleep();
 
             /* Move to docking station 1. */
-            current_state = move_group.getCurrentState();
-            move_group.setJointValueTarget(_dockingStation1);
-            ROS_INFO("Moving to docking station 1.");
-			move_group.setStartStateToCurrentState();
-            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!success)
+            if (!_simulation)
             {
-                ROS_WARN("Failed to move to docking station 1.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
+                current_state = move_group.getCurrentState();
+                move_group.setJointValueTarget(_dockingStation1);
+                ROS_INFO("Moving to docking station 1.");
+                move_group.setStartStateToCurrentState();
+                success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                if (!success)
+                {
+                    ROS_WARN("Failed to move to docking station 1.");
+                    continue;
+                }
+                if (!move_group.execute(myPlan))
+                {
+                    ROS_WARN("Failed to execute plan.");
+                    continue;
+                }
+                ros::Duration(1.0).sleep();
             }
-            if (!move_group.execute(myPlan))
-			{
-				ROS_WARN("Failed to execute plan.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
-			}
-			ros::Duration(1.0).sleep();
 
             /* Release the target. */
             ROS_INFO("Completed movement of object %d.", target.id);
@@ -377,6 +387,7 @@ void Task::run()
                     targetString.push_back(target.name);
                     planning_scene_interface.removeCollisionObjects(targetString);
                     gripper.publish(_openGripper);
+                    _objectAttached = false;
                 }
             }
             else
@@ -385,24 +396,25 @@ void Task::run()
             }
 
 			/* Moving above docking station 1. */
-			current_state = move_group.getCurrentState();
-            move_group.setJointValueTarget(_aboveDockingStation1);
-            ROS_INFO("Moving above docking station 1.");
-			move_group.setStartStateToCurrentState();
-            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!success)
+            if (!_simulation)
             {
-                ROS_WARN("Failed to move above docking station 1.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
+                current_state = move_group.getCurrentState();
+                move_group.setJointValueTarget(_aboveDockingStation1);
+                ROS_INFO("Moving above docking station 1.");
+                move_group.setStartStateToCurrentState();
+                success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                if (!success)
+                {
+                    ROS_WARN("Failed to move above docking station 1.");
+                    continue;
+                }
+                if (!move_group.execute(myPlan))
+                {
+                    ROS_WARN("Failed to execute plan.");
+                    continue;
+                }
+                ros::Duration(1.0).sleep();
             }
-            if (!move_group.execute(myPlan))
-			{
-				ROS_WARN("Failed to execute plan.");
-				if (!_moveToReferencePosition(move_group)) return;
-				continue;
-			}
-			ros::Duration(1.0).sleep();
         }
 
         if (movedTargets == _targets.size()) done = true;
