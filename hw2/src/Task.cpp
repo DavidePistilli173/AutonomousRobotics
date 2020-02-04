@@ -48,9 +48,11 @@ bool Task::init(int argc, char** argv)
 {
     ros::init(argc, argv, NODE_NAME);
 
+    /* Load command line arguments. */
     _path = argv[static_cast<int>(Argument::PATH)];
     _simulation = static_cast<bool>(std::atoi(argv[static_cast<int>(Argument::SIMULATION)]));
-    _objectAttached = false;
+
+    _objectAttached = false; // At the beginning, the manipuator does not hold any object.
 
     ROS_INFO("Loading meshes.");
     /* Load hexagon mesh. */
@@ -111,6 +113,7 @@ bool Task::init(int argc, char** argv)
     _dockingStation1[4] = -1.61;
     _dockingStation1[5] = -0.02;
 
+    /* No object has been moved yet. */
     for (auto& element : _completedTargets)
     {
         element = false;
@@ -164,7 +167,9 @@ void Task::run()
     moveit::core::RobotStatePtr current_state = move_group.getCurrentState();
     //current_state->copyJointGroupPositions(joint_model_group, _referencePosition);
 
-    ros::Duration(2.0).sleep(); // Sleep for 1 second.
+    ros::Duration(2.0).sleep(); // Wait for target information.
+
+    /* Move all targets. */
     moveit::planning_interface::MoveGroupInterface::Plan myPlan;
     bool done = false;
     while (!done)
@@ -184,10 +189,9 @@ void Task::run()
                 ROS_INFO("Trying to get object %d", target.id);
                 /* Move to the reference position. */
                 if (!_moveToReferencePosition(move_group)) return;
-
                 ros::Duration(1.0).sleep();
 
-                /* Move above the target object. */
+                /* Set the next goal above the target object. . */
                 geometry_msgs::Pose target_pose;
                 geometry_msgs::Pose aboveObjectPose;
                 geometry_msgs::TransformStamped transformStamped;
@@ -199,27 +203,23 @@ void Task::run()
                 geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
 
                 tf2::doTransform(target_pose, aboveObjectPose, transformStamped);
-                if (_simulation)
-                {
-                    aboveObjectPose.position.z += 0.3;
-                }
-                else
-                {
-                    aboveObjectPose.position.z += 0.23;
-                }
+
+                if (_simulation) aboveObjectPose.position.z += 0.3;
+                else aboveObjectPose.position.z += 0.23;
                 aboveObjectPose.position.x += 0.0075;
                 aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
                 aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
                 aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
                 aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
 
+                /* Move above the target object. */
                 move_group.setPoseTarget(aboveObjectPose);
-                ROS_INFO("Moving above target object.");
+                ROS_INFO("Moving above the target object.");
                 move_group.setStartStateToCurrentState();
                 bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
                 if (!success)
                 {
-                    ROS_WARN("Failed to move above target object.");
+                    ROS_WARN("Failed to move above the target object.");
                     continue;
                 }
                 if (!move_group.execute(myPlan))
@@ -227,14 +227,13 @@ void Task::run()
                     ROS_WARN("Failed to execute plan.");
                     continue;
                 }
-
                 ros::Duration(1.0).sleep();
 
                 /* Grasp the target object. */
                 if (_simulation)
                 {
                     gripper.publish(_openGripper);
-                    /* Rotate the gripper. */
+                    /* Set the rotation angle of the gripper. */
                     double qAngle = acos(target.rotation.w);
                     double qX = target.rotation.x / sin(qAngle);
                     double qY = target.rotation.y / sin(qAngle);
@@ -251,6 +250,7 @@ void Task::run()
                     ROS_WARN("Current rotation angle: %f", targetAlignment[NUM_MANIPULATOR_JOINTS - 1]);
                     targetAlignment[NUM_MANIPULATOR_JOINTS - 1] = zAngle;
 
+                    /* Rotate the gripper. */
                     current_state = move_group.getCurrentState();
                     move_group.setJointValueTarget(targetAlignment);
                     ROS_INFO("Align with the target.");
@@ -298,6 +298,7 @@ void Task::run()
                     continue;
                 }
                 ros::Duration(1.0).sleep();
+
                 move_group.attachObject(target.name); // Attach the target collision object to the manipulator.
                 /* Gripper related code. */
                 if (_simulation)
@@ -327,6 +328,23 @@ void Task::run()
                 {
                     // Real grasping.
                 }
+
+                /* Return in the previous position. */
+                move_group.setPoseTarget(aboveObjectPose);
+                ROS_INFO("Moving above the target object.");
+                move_group.setStartStateToCurrentState();
+                success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+                if (!success)
+                {
+                    ROS_WARN("Failed to move above the target object.");
+                    continue;
+                }
+                if (!move_group.execute(myPlan))
+                {
+                    ROS_WARN("Failed to execute plan.");
+                    continue;
+                }
+                ros::Duration(1.0).sleep();
             }
 
             /* Return to the reference position. */
