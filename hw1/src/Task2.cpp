@@ -438,6 +438,8 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
         object.name = objectName;
 
+        object.type = static_cast<int>(detectionChoice.mesh);
+
         topicOutput.objects.push_back(object);
     }
     /* Publish all poses. */    

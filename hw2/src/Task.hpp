@@ -22,9 +22,9 @@ enum class Argument
 /* Types of meshes. */
 enum class CollisionMeshes
 {
+    CUBE,
     HEX,
-    TRIANGLE,
-    CUBE
+    PRISM
 };
 
 class Task
@@ -45,12 +45,17 @@ public:
     static const int Q_LEN = 1000;
     static const int NUM_TARGETS = 16; // Maximum number of targets.
     static const int NUM_MANIPULATOR_JOINTS = 6; // Number of manipulator joints.
+    static constexpr double WAIT_TIME = 3.0;
+    //static constexpr double DELTA_Z_THRESHOLD = 0.001;
+    static constexpr double TABLE_Z = 0.92;
+    static constexpr double APPROACH_STEP = 0.002;
 
 private:
     static void _updateTargets(const hw1::poseArray::ConstPtr &msg); // Update target poses.
     static std::string _getModelName(const int objectId); // Return model name in gazebo.
 
 	bool _moveToReferencePosition(moveit::planning_interface::MoveGroupInterface& move_group); // Move the manipulator to the reference position.
+    bool _approachObject(moveit::planning_interface::MoveGroupInterface& move_group, CollisionMeshes targetType);
 
     static robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput _openGripper; // "Open the gripper" message.
     static robotiq_3f_gripper_articulated_msgs::Robotiq3FGripperRobotOutput _closeGripper; // "Close the gripper" message.

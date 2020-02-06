@@ -170,7 +170,36 @@ void Task1::_printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg
             objPose.coordinates.z = detection.pose.pose.pose.position.z;
 
             objPose.name = frames[_targets[j]];
-            objPose.id = detection.id[0];   
+            objPose.id = detection.id[0];
+            /* Set the object type. */
+            switch(detection.id[0])
+            {
+            /* Cubes. */
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 9:
+            case 10:
+            case 11:
+            case 12:            
+                objPose.type = static_cast<int>(Mesh::CUBE);
+                break;
+            /* Hexagons. */
+            case 4:
+            case 5:
+                objPose.type = static_cast<int>(Mesh::HEX);
+                break;
+            /* Prisms. */
+            case 6:
+            case 7:
+            case 8:
+            case 13:
+            case 14:
+            case 15:
+                objPose.type = static_cast<int>(Mesh::PRISM);
+                break;
+            }   
             topicOutput.objects.push_back(objPose);
         }
     }

@@ -9,6 +9,14 @@
 class Task1
 {
     public:
+        /* Mesh types. */
+        enum class Mesh
+        {
+            CUBE,
+            HEX,
+            PRISM
+        };
+        
         Task1();
 
         /* Initialise the ros node and target list. */
