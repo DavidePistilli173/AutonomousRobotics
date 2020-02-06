@@ -3,6 +3,7 @@
 #include <math.h>
 #include <sensor_msgs/LaserScan.h>
 #include <ros/ros.h>
+#include <std_srvs/Empty.h>
 
 #include "Task3.hpp"
 
@@ -87,6 +88,8 @@ void Task3::run()
 
     ros::Publisher motor_control = n.advertise<geometry_msgs::Twist>(MOTOR_TOPIC, Q_LEN);
 
+    ros::ServiceClient localizationService = n.serviceClient<std_srvs::Empty>("global_localization");
+
     MoveBaseClient ac("move_base", true);
 
     while(!ac.waitForServer(ros::Duration(5.0))) 
@@ -107,6 +110,18 @@ void Task3::run()
     _turn(-PI/2, -0.5, motor_control);
     ROS_INFO("Rotation complete.");
 
+    std_srvs::Empty serviceCall;
+    localizationService.call(serviceCall);
+    ros::Duration(1.00).sleep();
+    localizationService.call(serviceCall);
+    ros::Duration(1.00).sleep();
+    localizationService.call(serviceCall);
+    ros::Duration(1.00).sleep();
+    localizationService.call(serviceCall);
+    ros::Duration(1.00).sleep();
+    localizationService.call(serviceCall);
+    
+    /*
     ROS_INFO("Moving to arena entrance.");
     ac.sendGoal(_entrance);
     
@@ -160,6 +175,7 @@ void Task3::run()
 
     ROS_INFO("Docking station reached.");
     ROS_INFO("Ready to load.");
+    */
 }
 
 void Task3::_move(float distance, double speed, ros::Publisher& motor_control)
