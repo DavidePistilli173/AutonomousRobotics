@@ -477,15 +477,20 @@ void Task::_updateTargets(const hw1::poseArray::ConstPtr &msg)
             _targets[i].coordinates.x = object.coordinates.x;
             _targets[i].coordinates.y = object.coordinates.y;
             _targets[i].coordinates.z = object.coordinates.z;
-
-            _targets[i].rotation.w = object.rotation.w;
-            _targets[i].rotation.x = object.rotation.x;
-            _targets[i].rotation.y = object.rotation.y;
-            _targets[i].rotation.z = object.rotation.z;
-
             _collisionObjects[i].mesh_poses[0].position.x = _targets[i].coordinates.x;
             _collisionObjects[i].mesh_poses[0].position.y = _targets[i].coordinates.y;
             _collisionObjects[i].mesh_poses[0].position.z = _targets[i].coordinates.z;
+
+            double qAngle = acos(object.rotation.w);
+            double qX = object.rotation.x / sin(qAngle);
+            double qY = object.rotation.y / sin(qAngle);
+            double zAngle = atan(qY/qX);
+
+            _targets[i].rotation.w = cos(zAngle);
+            _targets[i].rotation.x = 0.0;
+            _targets[i].rotation.y = 0.0;
+            _targets[i].rotation.z = sin(zAngle);
+
             _collisionObjects[i].mesh_poses[0].orientation.w = _targets[i].rotation.w;
             _collisionObjects[i].mesh_poses[0].orientation.x = _targets[i].rotation.x;
             _collisionObjects[i].mesh_poses[0].orientation.y = _targets[i].rotation.y;
@@ -504,10 +509,15 @@ void Task::_updateTargets(const hw1::poseArray::ConstPtr &msg)
             newObject.coordinates.y = object.coordinates.y;
             newObject.coordinates.z = object.coordinates.z;
 
-            newObject.rotation.w = object.rotation.w;
-            newObject.rotation.x = object.rotation.x;
-            newObject.rotation.y = object.rotation.y;
-            newObject.rotation.z = object.rotation.z;
+            double qAngle = acos(object.rotation.w);
+            double qX = object.rotation.x / sin(qAngle);
+            double qY = object.rotation.y / sin(qAngle);
+            double zAngle = atan(qY/qX);
+
+            newObject.rotation.w = cos(zAngle);
+            newObject.rotation.x = 0.0;
+            newObject.rotation.y = 0.0;
+            newObject.rotation.z = sin(zAngle);
 
             _targets.push_back(newObject);
 
@@ -623,11 +633,44 @@ bool Task::_moveToReferencePosition(moveit::planning_interface::MoveGroupInterfa
 
 bool Task::_approachObject(moveit::planning_interface::MoveGroupInterface& move_group, CollisionMeshes targetType)
 {
+    /*
+    ROS_WARN("Approach? 0 to end.");
+    int a = 1;
+    bool done = false;
+    while (!done)
+    {
+        std::cin >> a;
+        if (a == 0) done = true;
+        else
+        {
+            geometry_msgs::PoseStamped targetPose = move_group.getCurrentPose();
+            targetPose.pose.position.z -= 0.01;
+            ROS_WARN("Z: %f", targetPose.pose.position.z);
+            move_group.setPoseTarget(targetPose);
+            ROS_INFO("Approaching object.");
+            moveit::planning_interface::MoveGroupInterface::Plan myPlan;
+            bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            if (!success)
+            {
+                ROS_WARN("Planning failed.");
+                return false;
+            }
+            if (!move_group.execute(myPlan))
+            {
+                ROS_WARN("Failed to approach object.");
+                return false;
+            }
+        }
+    }
+    return true;
+    */
+    
+    geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
     double targetZ;
     switch(targetType)
     {
     case CollisionMeshes::CUBE:
-        targetZ = TABLE_Z + 0.10;
+        targetZ = 1.0119 + TABLE_INCLINATION * (-currentPose.pose.position.x + TABLE_MAX_X);
         break;
     case CollisionMeshes::HEX:
         targetZ = TABLE_Z + 0.20;
@@ -636,10 +679,11 @@ bool Task::_approachObject(moveit::planning_interface::MoveGroupInterface& move_
         targetZ = TABLE_Z + 0.065;
         break;
     }
+    ROS_WARN("TargetZ: %f", targetZ);
 
-    geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
     while (currentPose.pose.position.z > targetZ)
     {
+        ROS_WARN("CurrentZ: %f", currentPose.pose.position.z);
         move_group.setStartStateToCurrentState();
         currentPose.pose.position.z -= APPROACH_STEP;
         move_group.setPoseTarget(currentPose);
@@ -658,7 +702,7 @@ bool Task::_approachObject(moveit::planning_interface::MoveGroupInterface& move_
         }
     }
     return true;
-
+    
     /*
     bool done = false;
     geometry_msgs::PoseStamped previousPose = move_group.getCurrentPose();

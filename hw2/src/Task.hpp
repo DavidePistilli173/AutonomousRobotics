@@ -48,7 +48,11 @@ public:
     static constexpr double WAIT_TIME = 3.0;
     //static constexpr double DELTA_Z_THRESHOLD = 0.001;
     static constexpr double TABLE_Z = 0.92;
-    static constexpr double APPROACH_STEP = 0.002;
+    static constexpr double APPROACH_STEP = 0.001;
+    static constexpr double TABLE_INCLINATION = 0.00926;
+    static constexpr double TABLE_MIN_X = -0.58;
+    static constexpr double TABLE_MAX_X = 0.5;
+    static constexpr double TABLE_WIDTH = TABLE_MAX_X - TABLE_MIN_X;
 
 private:
     static void _updateTargets(const hw1::poseArray::ConstPtr &msg); // Update target poses.
