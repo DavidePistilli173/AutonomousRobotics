@@ -3,6 +3,7 @@
 
 #include <move_base_msgs/MoveBaseAction.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <sensor_msgs/LaserScan.h>
 
 enum class Argument
 {
@@ -50,6 +51,7 @@ public:
     static constexpr char NODE_NAME[] = "hw3";
     static constexpr char MOTOR_TOPIC[] = "move_base/cmd_vel";
     static constexpr char POSE_TOPIC[] = "amcl_pose";
+    static constexpr char SCAN_TOPIC[] = "scan";
 
 private:
     move_base_msgs::MoveBaseGoal _corridorEnd;
@@ -61,9 +63,12 @@ private:
     void _move(float distance, double speed, ros::Publisher& motor_control);
     void _turn(float angle, double speed, ros::Publisher& motor_control);
     void _set_velocities(float lin_vel, float ang_vel, ros::Publisher& motor_control);
+    bool _obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle);
 
     static void _getEstimatedPose(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr &msg);
+    static void _laserScan(const sensor_msgs::LaserScan::ConstPtr &msg);
     static geometry_msgs::PoseWithCovarianceStamped _currentEsimatedPose;
+    static sensor_msgs::LaserScan _scan;
 
     /* AMCL settings. */
     double _kld_err;

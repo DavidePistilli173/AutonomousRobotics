@@ -11,6 +11,7 @@
 typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
 geometry_msgs::PoseWithCovarianceStamped Task3::_currentEsimatedPose;
+sensor_msgs::LaserScan Task3::_scan;
 
 Task3::Task3()
 {
@@ -91,6 +92,7 @@ void Task3::run()
     ros::NodeHandle n;
     //_entrance.target_pose.header.stamp = ros::Time::now();
 
+    ros::Subscriber laserScan = n.subscribe(SCAN_TOPIC, Q_LEN, _laserScan);
     ros::Subscriber estimated_pose = n.subscribe<geometry_msgs::PoseWithCovarianceStamped>(POSE_TOPIC, Q_LEN, _getEstimatedPose);
     ros::Publisher motor_control = n.advertise<geometry_msgs::Twist>(MOTOR_TOPIC, Q_LEN);
 
@@ -168,6 +170,10 @@ void Task3::run()
 
     ROS_INFO("Corridor end reached.");
 
+    ROS_INFO("Object in front? %d", _obstacleInFront(_scan, PI/8));
+
+    
+    /*
     ROS_INFO("Moving to the docking stations.");
     while (ac.sendGoalAndWait(_preDockingStation) != actionlib::SimpleClientGoalState::SUCCEEDED)
     {
@@ -190,6 +196,7 @@ void Task3::run()
     }
 
     ROS_INFO("Docking stations reached.");
+    */
 }
 
 void Task3::_move(float distance, double speed, ros::Publisher& motor_control)
@@ -244,4 +251,83 @@ void Task3::_getEstimatedPose(const geometry_msgs::PoseWithCovarianceStamped::Co
     _currentEsimatedPose.pose.pose.orientation.x = 0.0;
     _currentEsimatedPose.pose.pose.orientation.y = 0.0;
     _currentEsimatedPose.pose.pose.orientation.z = msg->pose.pose.orientation.z;
+}
+
+void Task3::_laserScan(const sensor_msgs::LaserScan::ConstPtr &msg)
+{
+    sensor_msgs::LaserScan scan;
+
+    //Angle of first beam (ranges[0]) (-PI)
+    _scan.angle_min = msg->angle_min;
+
+    //Angle of last beam (ranges[400]) (PI)
+    _scan.angle_max = msg->angle_max;
+    
+    //Step between beam angles (0.015747 rad = PI/199.50 (?))
+    _scan.angle_increment = msg->angle_increment;
+
+    //Laser scan ranges in m: angle(laser[i + 1]) = angle(laser[i]) + angle_increment
+    _scan.ranges = msg->ranges;
+
+    //Max laser range (to remove erroneous scans)
+    _scan.range_max = msg->range_max;
+}
+
+//coneAngle: Angle in which to consider scans (starting from marrtino front)
+bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle)
+{
+    //Necessary angle increments to span desired angle
+    int steps = coneAngle / scan.angle_increment;
+    //Array containing only scans in teh selected cone
+    float coneScans[steps];
+    //Max range to consider (m)
+    float maxRange = 0.15;
+
+    //Number of points to be detected before an obstacle is identified
+    const int obsThresh = 10;
+    //Index of marrtino front
+    int frontIndex = scan.ranges.size() / 2;
+
+    /*
+    for(int i = 0; i < scan.ranges.size(); i++)
+    {
+        if(scan.ranges[i] < 0.8 && scan.ranges[i] > 0.5)
+            ROS_INFO("%d: %f", i, scan.ranges[i]);
+    }
+    */
+
+    int detectedPoints = 0;
+    float totalDistance = 0;
+    for(int i = 0; i < steps / 2; i++)
+    {
+        float range = scan.ranges[frontIndex - i];
+        if(range < maxRange && range > 0)
+        {
+            coneScans[i] = scan.ranges[frontIndex - i];
+            ++detectedPoints;
+            totalDistance += range;
+        }
+        else
+            coneScans[i] = 0;
+        
+        range = scan.ranges[frontIndex + i];
+        if(range < maxRange && range > 0)
+        {
+            coneScans[2 * i] = scan.ranges[frontIndex + i];
+            ++detectedPoints;
+            totalDistance += range;
+        }
+        else
+            coneScans[2 * i] = 0;
+    }
+
+    ROS_INFO("Points detected: %d", detectedPoints);
+
+    if(detectedPoints >= obsThresh)
+    {
+        ROS_INFO("Object detected at about %f m", totalDistance / detectedPoints);
+        return true;
+    }
+    else
+        return false;
 }
