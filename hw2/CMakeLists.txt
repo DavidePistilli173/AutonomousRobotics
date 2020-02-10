@@ -126,9 +126,10 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  "../."
 )
 
-add_executable(hw2_task src/hw2_task.cpp src/Task.cpp)
+add_executable(hw2_task src/hw2_task.cpp src/Task.cpp ../lab.cpp)
 
 target_link_libraries(hw2_task ${catkin_LIBRARIES})
 

@@ -122,9 +122,10 @@ catkin_package(
 include_directories(
 # include
 	${catkin_INCLUDE_DIRS}
+	"../."
 )
 
-add_executable(hw3 src/hw3.cpp src/Task3.cpp)
+add_executable(hw3 src/hw3.cpp src/Task3.cpp ../lab.cpp)
 
 target_link_libraries(hw3 ${catkin_LIBRARIES})
 

@@ -3,14 +3,14 @@
 #include "hw1/poseArray.h"
 
 /* Definitions of static variables. */
-int Task1::_targets[Task1::N];
+int Task1::_targets[lab::N];
 int Task1::_targetNum = 0;
 std::ofstream Task1::_outputFile;
 bool Task1::_received = false;
 
 ros::Publisher Task1::posePublisher;
 
-const std::string Task1::frames[N] =
+const std::string Task1::frames[lab::N] =
     {
         "red_cube_0",
         "red_cube_1",
@@ -43,7 +43,7 @@ bool Task1::init(int argc, char** argv)
     ros::init(argc, argv, NODE_NAME);
 
     /* Argument number check. */
-    if (argc > N+ARGC_OFFSET)
+    if (argc > lab::N+ARGC_OFFSET)
     {
         ROS_ERROR("Too many arguments.");
         return false;
@@ -60,12 +60,12 @@ bool Task1::init(int argc, char** argv)
     for (i = ARGC_OFFSET; i < argc; ++i)
     {
         int id = 0;
-        while (id < N && frames[id] != argv[i])
+        while (id < lab::N && frames[id] != argv[i])
         {
             ++id;
         }
         /* If the frame_id is wrong, exit. */
-        if (id == N)
+        if (id == lab::N)
         {
             ROS_ERROR("Unknown frame_id: %s", argv[i]);
             return false;
@@ -98,8 +98,8 @@ void Task1::run()
 {
     ros::NodeHandle n;
     /* Subscribe to topic TOPIC_NAME. */
-    ros::Subscriber sub = n.subscribe(SOURCE_TOPIC_NAME, Q_LEN, _printPose);
-    posePublisher = n.advertise<hw1::poseArray>(DEST_TOPIC_NAME, Q_LEN);
+    ros::Subscriber sub = n.subscribe(SOURCE_TOPIC_NAME, lab::Q_LEN, _printPose);
+    posePublisher = n.advertise<hw1::poseArray>(DEST_TOPIC_NAME, lab::Q_LEN);
     ros::Rate loop_rate(10);
     /* Loop until a message is received. */
     while (ros::ok())
@@ -183,12 +183,12 @@ void Task1::_printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg
             case 10:
             case 11:
             case 12:            
-                objPose.type = static_cast<int>(Mesh::CUBE);
+                objPose.type = static_cast<int>(lab::Mesh::CUBE);
                 break;
             /* Hexagons. */
             case 4:
             case 5:
-                objPose.type = static_cast<int>(Mesh::HEX);
+                objPose.type = static_cast<int>(lab::Mesh::HEX);
                 break;
             /* Prisms. */
             case 6:
@@ -197,7 +197,7 @@ void Task1::_printPose(const apriltag_ros::AprilTagDetectionArray::ConstPtr &msg
             case 13:
             case 14:
             case 15:
-                objPose.type = static_cast<int>(Mesh::PRISM);
+                objPose.type = static_cast<int>(lab::Mesh::PRISM);
                 break;
             }   
             topicOutput.objects.push_back(objPose);
