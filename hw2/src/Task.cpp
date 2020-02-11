@@ -142,7 +142,7 @@ void Task::run()
         gazeboAttacher = n.serviceClient<gazebo_ros_link_attacher::Attach>("/link_attacher_node/attach");
         gazeboDetacher = n.serviceClient<gazebo_ros_link_attacher::Attach>("/link_attacher_node/detach");
     }
-    ros::AsyncSpinner spinner(1);
+    ros::AsyncSpinner spinner(2);
     spinner.start();
 
     ROS_INFO("Initialising tf.");
@@ -151,6 +151,9 @@ void Task::run()
 
     ROS_INFO("Initialising move group.");
     moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+    //move_group.setGoalJointTolerance(1e-4);
+    //move_group.setGoalPositionTolerance(1e-4);
+    //move_group.setGoalOrientationTolerance(1e-4);
     ROS_INFO("Initialising planning interface.");
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
     ROS_INFO("Initialising joint model group.");
@@ -376,8 +379,22 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
         ROS_WARN("Pose: x=%f, y=%f, z=%f", aboveObjectPose.position.x, aboveObjectPose.position.y, aboveObjectPose.position.z);
 
         if (_simulation) aboveObjectPose.position.z += 0.3;
-        else aboveObjectPose.position.z += 0.23;
-        aboveObjectPose.position.x += 0.0075;
+        else
+        {
+            switch (static_cast<lab::Mesh>(target.type))
+            {
+                case lab::Mesh::CUBE:
+                    aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::CUBE)] + OBJ_HEIGHT_OFFSET;
+                    break;
+                case lab::Mesh::HEX:
+                    aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::HEX)] + OBJ_HEIGHT_OFFSET;
+                    break;
+                case lab::Mesh::PRISM:
+                    aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::PRISM)] + OBJ_HEIGHT_OFFSET;
+                    break;
+            }
+        } 
+        //aboveObjectPose.position.x += 0.0075;
         aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
         aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
         aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
@@ -450,15 +467,22 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
 
         /* Lower the manipulator arm depending on the object. */
         /* If the target is a prism. */
-        if ((target.id >= 6 && target.id <= 8) ||
-            target.id >= 13 && target.id <= 15)
+        if (_simulation)
         {
-            objectPose.pose.position.z -= 0.08;
+            if ((target.id >= 6 && target.id <= 8) ||
+                target.id >= 13 && target.id <= 15)
+            {
+                objectPose.pose.position.z -= 0.08;
+            }
+            /* Otherwise. */
+            else
+            {
+                objectPose.pose.position.z -= 0.125;
+            }
         }
-        /* Otherwise. */
         else
         {
-            objectPose.pose.position.z -= 0.125;
+            objectPose.pose.position.z -= OBJ_HEIGHT_OFFSET/2;
         }
 
         move_group.setPoseTarget(objectPose);
@@ -694,13 +718,13 @@ bool Task::_approachObject(moveit::planning_interface::MoveGroupInterface& move_
     switch(targetType)
     {
     case lab::Mesh::CUBE:
-        targetZ = 1.0119 + TABLE_INCLINATION * (-currentPose.pose.position.x + TABLE_MAX_X);
+        targetZ = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::CUBE)] + TABLE_INCLINATION * (-currentPose.pose.position.x + TABLE_MAX_X);
         break;
     case lab::Mesh::HEX:
-        targetZ = TABLE_Z + 0.20;
+        targetZ = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::HEX)] + TABLE_INCLINATION * (-currentPose.pose.position.x + TABLE_MAX_X);
         break;
     case lab::Mesh::PRISM:
-        targetZ = TABLE_Z + 0.065;
+        targetZ = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::PRISM)] + TABLE_INCLINATION * (-currentPose.pose.position.x + TABLE_MAX_X);
         break;
     }
     ROS_WARN("TargetZ: %f", targetZ);

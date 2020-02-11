@@ -31,6 +31,7 @@ namespace lab
     constexpr double PI = 3.141592653589793;
     constexpr int N = 16; // Maximum number of objects in the scene.
     constexpr int Q_LEN = 1000; // Queue length for ROS messages.
+    constexpr double MESH_HEIGHTS[] = {0.095, 0.200, 0.060};
 
     /********** FUNCTIONS **********/
     /* Return the rotation around the z axis.*/

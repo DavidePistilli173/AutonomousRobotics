@@ -36,9 +36,10 @@ public:
     static const std::string GRIPPER_TOPIC; // Topic used for simulated gripper operation.
 
     static const int NUM_MANIPULATOR_JOINTS = 6; // Number of manipulator joints.
-    static constexpr double WAIT_TIME = 3.0;
+    static constexpr double WAIT_TIME = 5.0;
     //static constexpr double DELTA_Z_THRESHOLD = 0.001;
     static constexpr double TABLE_Z = 0.92;
+    static constexpr double OBJ_HEIGHT_OFFSET = 0.10;
     static constexpr double APPROACH_STEP = 0.001;
     static constexpr double TABLE_INCLINATION = 0.00926;
     static constexpr double TABLE_MIN_X = -0.58;
