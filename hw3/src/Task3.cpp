@@ -4,7 +4,6 @@
 #include <sensor_msgs/LaserScan.h>
 #include <ros/ros.h>
 #include <std_srvs/Empty.h>
-#include <dynamic_reconfigure/Reconfigure.h>
 
 #include "Task3.hpp"
 
@@ -98,11 +97,82 @@ void Task3::run()
 
     //ros::ServiceClient localizationService = n.serviceClient<std_srvs::Empty>("global_localization");
     ros::ServiceClient localizationConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("amcl/set_parameters");
+    ros::ServiceClient DWAPlannerConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("move_base/DWAPlannerROS/set_parameters");
+    ros::ServiceClient globalConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("move_base/global_costmap/set_parameters");
+    ros::ServiceClient globalInflationConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("move_base/global_costmap/inflation_layer/set_parameters");
+    ros::ServiceClient localConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("move_base/local_costmap/set_parameters");
+    ros::ServiceClient localInflationConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("move_base/local_costmap/inflation_layer/set_parameters");
+
     dynamic_reconfigure::Reconfigure amclSettings;
+
+    dynamic_reconfigure::Reconfigure DWAPlannerSettings;
+    dynamic_reconfigure::Reconfigure globalSettings;
+    dynamic_reconfigure::Reconfigure globalInflationSettings;
+    dynamic_reconfigure::Reconfigure localSettings;
+    dynamic_reconfigure::Reconfigure localInflationSettings;
+
+    _initAMCLParams(amclSettings);
+    _initMoveBaseParams(DWAPlannerSettings, globalSettings, globalInflationSettings, localSettings, localInflationSettings);
 
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
+    localizationConfig.call(amclSettings);
+    DWAPlannerConfig.call(DWAPlannerSettings);
+    globalConfig.call(globalSettings);
+    localConfig.call(localSettings);
+
+    MoveBaseClient ac("move_base", true);
+
+    while(!ac.waitForServer(ros::Duration(5.0))) 
+        ROS_INFO("Waiting for the move_base action server"); 
+
+    
+    ROS_INFO("Moving to the entrance.");
+    while (ac.sendGoalAndWait(_entrance) != actionlib::SimpleClientGoalState::SUCCEEDED)
+    {
+        //double zAngle = 2 * acos(_currentEsimatedPose.pose.pose.orientation.z);
+        //if (_currentEsimatedPose.pose.pose.position.x <= -0.72 && _currentEsimatedPose.pose.pose.position.x >= -1.5 &&
+        //    _currentEsimatedPose.pose.pose.position.y <= 3.45 && _currentEsimatedPose.pose.pose.position.y >= 2.85)
+        //{
+            ROS_INFO("Backing off.");
+            _move(-0.1, -0.1, motor_control);
+        //}
+    }
+
+    ROS_INFO("Corridor end reached.");
+
+    ROS_INFO("Object in front? %d", _obstacleInFront(_scan, PI/8));
+
+    
+    /*
+    ROS_INFO("Moving to the docking stations.");
+    while (ac.sendGoalAndWait(_preDockingStation) != actionlib::SimpleClientGoalState::SUCCEEDED)
+    {
+        double zAngle = 2 * acos(_currentEsimatedPose.pose.pose.orientation.z);
+        ROS_INFO("Current pose: x=%f, y=%f, zAngle=%f", _currentEsimatedPose.pose.pose.position.x, _currentEsimatedPose.pose.pose.position.y, zAngle);
+        if (_currentEsimatedPose.pose.pose.position.x <= -0.19 && _currentEsimatedPose.pose.pose.position.x >= -0.95 &&
+            _currentEsimatedPose.pose.pose.position.y <= 3.45 && _currentEsimatedPose.pose.pose.position.y >= 2.85)
+        {
+            ROS_INFO("Backing off.");
+            _move(-0.1, -0.1, motor_control);
+        }
+        else if (std::abs(_preDockingStation.target_pose.pose.position.x - _currentEsimatedPose.pose.pose.position.x) <= 0.35 &&
+                 std::abs(_preDockingStation.target_pose.pose.position.y - _currentEsimatedPose.pose.pose.position.y) <= 0.35)
+        {
+            ROS_INFO("Completing turn.");
+            double deltaZ = 2 * (asin(_preDockingStation.target_pose.pose.orientation.z) - asin(_currentEsimatedPose.pose.pose.orientation.z));
+            ROS_WARN("deltaZ: %f", deltaZ);
+            _turn(deltaZ, -0.2, motor_control);
+        }
+    }
+
+    ROS_INFO("Docking stations reached.");
+    */
+}
+
+void Task3::_initAMCLParams(dynamic_reconfigure::Reconfigure& amclSettings)
+{
     dynamic_reconfigure::DoubleParameter kld_err;
     kld_err.name = "kld_err";
     kld_err.value = _kld_err;
@@ -147,56 +217,159 @@ void Task3::run()
     odom_alpha4.name = "odom_alpha4";
     odom_alpha4.value = _odom_alpha4;
     amclSettings.request.config.doubles.push_back(odom_alpha4);
+}
 
-    localizationConfig.call(amclSettings);
+void Task3::_initMoveBaseParams(dynamic_reconfigure::Reconfigure& DWAPlannerSettings, 
+                                dynamic_reconfigure::Reconfigure& globalSettings,
+                                dynamic_reconfigure::Reconfigure& globalInflationSettings, 
+                                dynamic_reconfigure::Reconfigure& localSettings,
+                                dynamic_reconfigure::Reconfigure& localInflationSettings)
+{
+    /* Set DWA parameters. */
+    dynamic_reconfigure::DoubleParameter acc_lim_x;
+    acc_lim_x.name = "acc_lim_x";
+    acc_lim_x.value = 0.7;
+    DWAPlannerSettings.request.config.doubles.push_back(acc_lim_x);
 
-    MoveBaseClient ac("move_base", true);
+    dynamic_reconfigure::DoubleParameter acc_lim_th;
+    acc_lim_th.name = "acc_lim_theta";
+    acc_lim_th.value = 2.0;
+    DWAPlannerSettings.request.config.doubles.push_back(acc_lim_th);
 
-    while(!ac.waitForServer(ros::Duration(5.0))) 
-        ROS_INFO("Waiting for the move_base action server"); 
-
+    dynamic_reconfigure::DoubleParameter max_vel_x;
+    max_vel_x.name = "max_vel_x";
+    max_vel_x.value = 0.3;
+    DWAPlannerSettings.request.config.doubles.push_back(max_vel_x);    
     
-    ROS_INFO("Moving to the entrance.");
-    while (ac.sendGoalAndWait(_entrance) != actionlib::SimpleClientGoalState::SUCCEEDED)
-    {
-        double zAngle = 2 * acos(_currentEsimatedPose.pose.pose.orientation.z);
-        if (_currentEsimatedPose.pose.pose.position.x <= -0.72 && _currentEsimatedPose.pose.pose.position.x >= -1.5 &&
-            _currentEsimatedPose.pose.pose.position.y <= 3.45 && _currentEsimatedPose.pose.pose.position.y >= 2.85)
-        {
-            ROS_INFO("Backing off.");
-            _move(-0.1, -0.1, motor_control);
-        }
-    }
+    dynamic_reconfigure::DoubleParameter min_vel_x;
+    min_vel_x.name = "min_vel_x";
+    min_vel_x.value = -0.3;
+    DWAPlannerSettings.request.config.doubles.push_back(min_vel_x);
 
-    ROS_INFO("Corridor end reached.");
+    dynamic_reconfigure::DoubleParameter max_rot_vel;
+    max_rot_vel.name = "max_rot_vel";
+    max_rot_vel.value = 1.5;
+    DWAPlannerSettings.request.config.doubles.push_back(max_rot_vel);
 
-    ROS_INFO("Object in front? %d", _obstacleInFront(_scan, PI/8));
-
+    dynamic_reconfigure::DoubleParameter min_rot_vel;
+    min_rot_vel.name = "min_rot_vel";
+    min_rot_vel.value = -1.5;
+    DWAPlannerSettings.request.config.doubles.push_back(min_rot_vel);    
     
-    /*
-    ROS_INFO("Moving to the docking stations.");
-    while (ac.sendGoalAndWait(_preDockingStation) != actionlib::SimpleClientGoalState::SUCCEEDED)
-    {
-        double zAngle = 2 * acos(_currentEsimatedPose.pose.pose.orientation.z);
-        ROS_INFO("Current pose: x=%f, y=%f, zAngle=%f", _currentEsimatedPose.pose.pose.position.x, _currentEsimatedPose.pose.pose.position.y, zAngle);
-        if (_currentEsimatedPose.pose.pose.position.x <= -0.19 && _currentEsimatedPose.pose.pose.position.x >= -0.95 &&
-            _currentEsimatedPose.pose.pose.position.y <= 3.45 && _currentEsimatedPose.pose.pose.position.y >= 2.85)
-        {
-            ROS_INFO("Backing off.");
-            _move(-0.1, -0.1, motor_control);
-        }
-        else if (std::abs(_preDockingStation.target_pose.pose.position.x - _currentEsimatedPose.pose.pose.position.x) <= 0.35 &&
-                 std::abs(_preDockingStation.target_pose.pose.position.y - _currentEsimatedPose.pose.pose.position.y) <= 0.35)
-        {
-            ROS_INFO("Completing turn.");
-            double deltaZ = 2 * (asin(_preDockingStation.target_pose.pose.orientation.z) - asin(_currentEsimatedPose.pose.pose.orientation.z));
-            ROS_WARN("deltaZ: %f", deltaZ);
-            _turn(deltaZ, -0.2, motor_control);
-        }
-    }
+    dynamic_reconfigure::DoubleParameter yaw_goal_tolerance;
+    yaw_goal_tolerance.name = "yaw_goal_tolerance";
+    yaw_goal_tolerance.value = 0.3;
+    DWAPlannerSettings.request.config.doubles.push_back(yaw_goal_tolerance);
 
-    ROS_INFO("Docking stations reached.");
-    */
+    dynamic_reconfigure::DoubleParameter xy_goal_tolerance;
+    xy_goal_tolerance.name = "xy_goal_tolerance";
+    xy_goal_tolerance.value = 0.2;
+    DWAPlannerSettings.request.config.doubles.push_back(xy_goal_tolerance);
+    
+    dynamic_reconfigure::DoubleParameter sim_time;
+    sim_time.name = "sim_time";
+    sim_time.value = 3.0;
+    DWAPlannerSettings.request.config.doubles.push_back(sim_time);    
+
+    dynamic_reconfigure::IntParameter vx_samples;
+    vx_samples.name = "vx_samples";
+    vx_samples.value = 3;
+    DWAPlannerSettings.request.config.ints.push_back(vx_samples);      
+    
+    dynamic_reconfigure::DoubleParameter path_distance_bias;
+    path_distance_bias.name = "path_distance_bias";
+    path_distance_bias.value = 50.0;
+    DWAPlannerSettings.request.config.doubles.push_back(path_distance_bias); 
+
+    dynamic_reconfigure::DoubleParameter goal_distance_bias;
+    goal_distance_bias.name = "goal_distance_bias";
+    goal_distance_bias.value = 12.0;
+    DWAPlannerSettings.request.config.doubles.push_back(goal_distance_bias);
+
+    dynamic_reconfigure::DoubleParameter occdist_scale;
+    occdist_scale.name = "occdist_scale";
+    occdist_scale.value = 0.005;
+    DWAPlannerSettings.request.config.doubles.push_back(occdist_scale);
+    
+    dynamic_reconfigure::DoubleParameter forward_point_distance;
+    forward_point_distance.name = "forward_point_distance";
+    forward_point_distance.value = 0.325;
+    DWAPlannerSettings.request.config.doubles.push_back(forward_point_distance);
+    
+    dynamic_reconfigure::DoubleParameter stock_timer_buffer;
+    stock_timer_buffer.name = "stop_time_buffer";
+    stock_timer_buffer.value = 0.2;
+    DWAPlannerSettings.request.config.doubles.push_back(stock_timer_buffer); 
+    
+    dynamic_reconfigure::DoubleParameter scaling_speed;
+    scaling_speed.name = "scaling_speed";
+    scaling_speed.value = 0.25;
+    DWAPlannerSettings.request.config.doubles.push_back(scaling_speed);
+
+    dynamic_reconfigure::DoubleParameter max_scaling_factor;
+    max_scaling_factor.name = "max_scaling_factor";
+    max_scaling_factor.value = 0.2;
+    DWAPlannerSettings.request.config.doubles.push_back(max_scaling_factor); 
+    
+    dynamic_reconfigure::DoubleParameter oscillation_reset_dist;
+    oscillation_reset_dist.name = "oscillation_reset_dist";
+    oscillation_reset_dist.value = 0.05;
+    DWAPlannerSettings.request.config.doubles.push_back(oscillation_reset_dist);  
+
+
+    /* Set common costmap parameters. */
+    dynamic_reconfigure::StrParameter footprint;
+    footprint.name = "footprint";
+    footprint.value = "[[-0.13,-0.21],[-0.13,0.21],[0.13,0.21],[0.13,-0.21]]";
+    globalSettings.request.config.strs.push_back(footprint);
+    localSettings.request.config.strs.push_back(footprint);
+
+    dynamic_reconfigure::DoubleParameter footprint_padding;
+    footprint_padding.name = "footprint_padding";
+    footprint_padding.value = 0.01;
+    globalSettings.request.config.doubles.push_back(footprint_padding);
+    localSettings.request.config.doubles.push_back(footprint_padding); 
+
+    dynamic_reconfigure::DoubleParameter update_frequency;
+    update_frequency.name = "update_frequency";
+    update_frequency.value = 4.0;
+    globalSettings.request.config.doubles.push_back(update_frequency);
+    localSettings.request.config.doubles.push_back(update_frequency);
+
+    dynamic_reconfigure::DoubleParameter publish_frequency;
+    publish_frequency.name = "publish_frequency";
+    publish_frequency.value = 3.0;
+    globalSettings.request.config.doubles.push_back(publish_frequency);
+    localSettings.request.config.doubles.push_back(publish_frequency);
+
+    dynamic_reconfigure::DoubleParameter transform_tolerance;
+    transform_tolerance.name = "transform_tolerance";
+    transform_tolerance.value = 0.5;
+    globalSettings.request.config.doubles.push_back(transform_tolerance);
+    localSettings.request.config.doubles.push_back(transform_tolerance);   
+
+    dynamic_reconfigure::DoubleParameter resolution;
+    resolution.name = "resolution";
+    resolution.value = 0.01;
+    globalSettings.request.config.doubles.push_back(resolution);
+    localSettings.request.config.doubles.push_back(resolution);     
+
+    dynamic_reconfigure::DoubleParameter cost_scaling_factor;
+    cost_scaling_factor.name = "cost_scaling_factor";
+    cost_scaling_factor.value = 10.0;
+    globalInflationSettings.request.config.doubles.push_back(cost_scaling_factor);
+    localInflationSettings.request.config.doubles.push_back(cost_scaling_factor); 
+
+    /* Set inflation parameters. */
+    dynamic_reconfigure::DoubleParameter global_inflation_radius;
+    global_inflation_radius.name = "inflation_radius";
+    global_inflation_radius.value = 0.07;
+    globalInflationSettings.request.config.doubles.push_back(global_inflation_radius);
+
+    dynamic_reconfigure::DoubleParameter local_inflation_radius;
+    local_inflation_radius.name = "inflation_radius";
+    local_inflation_radius.value = 0.01;
+    localInflationSettings.request.config.doubles.push_back(local_inflation_radius);
 }
 
 void Task3::_move(float distance, double speed, ros::Publisher& motor_control)
@@ -278,10 +451,10 @@ bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle)
 {
     //Necessary angle increments to span desired angle
     int steps = coneAngle / scan.angle_increment;
-    //Array containing only scans in teh selected cone
+    //Array containing only scans in the selected cone
     float coneScans[steps];
     //Max range to consider (m)
-    float maxRange = 0.15;
+    float maxRange = 1.00;
 
     //Number of points to be detected before an obstacle is identified
     const int obsThresh = 10;
@@ -298,7 +471,7 @@ bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle)
 
     int detectedPoints = 0;
     float totalDistance = 0;
-    for(int i = 0; i < steps / 2; i++)
+    for(int i = 0; i < steps / 2; ++i)
     {
         float range = scan.ranges[frontIndex - i];
         if(range < maxRange && range > 0)
