@@ -13,24 +13,46 @@ geometry_msgs::PoseWithCovarianceStamped Task3::_currentEsimatedPose;
 sensor_msgs::LaserScan Task3::_scan;
 
 Task3::Task3()
-{
-    double angle = PI/2;
-    _corridorEnd.target_pose.header.frame_id = "marrtino_map";
-    _corridorEnd.target_pose.pose.position.x = -1.11;
-    _corridorEnd.target_pose.pose.position.y = 3.10;
-    _corridorEnd.target_pose.pose.orientation.x = 0.0;
-    _corridorEnd.target_pose.pose.orientation.y = 0.0;
-    _corridorEnd.target_pose.pose.orientation.z = sin(angle/2);
-    _corridorEnd.target_pose.pose.orientation.w = cos(angle/2);
+{};
 
-    angle = 0;
-    _entrance.target_pose.header.frame_id = "marrtino_map";
-    _entrance.target_pose.pose.position.x = -0.85;
-    _entrance.target_pose.pose.position.y = 3.18;
-    _entrance.target_pose.pose.orientation.x = 0.0;
-    _entrance.target_pose.pose.orientation.y = 0.0;
-    _entrance.target_pose.pose.orientation.z = sin(angle/2);
-    _entrance.target_pose.pose.orientation.w = cos(angle/2);
+bool Task3::init(int argc, char** argv)
+{
+    ros::init(argc, argv, NODE_NAME);
+
+    _kld_err = std::atof(argv[static_cast<int>(Argument::KLD_ERR)]);
+    _update_min_d = std::atof(argv[static_cast<int>(Argument::UPDATE_MIN_D)]);
+    _update_min_a = std::atof(argv[static_cast<int>(Argument::UPDATE_MIN_A)]);
+    _laser_min_range = std::atof(argv[static_cast<int>(Argument::LASER_MIN_RANGE)]);
+    _laser_max_range = std::atof(argv[static_cast<int>(Argument::LASER_MAX_RANGE)]);
+    _odom_alpha1 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA1)]);
+    _odom_alpha2 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA2)]);
+    _odom_alpha3 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA3)]);
+    _odom_alpha4 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA4)]);
+
+    _simulation = static_cast<bool>(std::atoi(argv[static_cast<int>(Argument::SIMULATION)]));
+
+    double angle = 0;
+    if (_simulation)
+    {
+        _entrance.target_pose.header.frame_id = "marrtino_map";
+        _entrance.target_pose.pose.position.x = -0.85;
+        _entrance.target_pose.pose.position.y = 3.18;
+        _entrance.target_pose.pose.orientation.x = 0.0;
+        _entrance.target_pose.pose.orientation.y = 0.0;
+        _entrance.target_pose.pose.orientation.z = sin(angle/2);
+        _entrance.target_pose.pose.orientation.w = cos(angle/2);
+    }
+    else
+    {
+        _entrance.target_pose.header.frame_id = "marrtino_map";
+        _entrance.target_pose.pose.position.x = -0.80;
+        _entrance.target_pose.pose.position.y = 3.18;
+        _entrance.target_pose.pose.orientation.x = 0.0;
+        _entrance.target_pose.pose.orientation.y = 0.0;
+        _entrance.target_pose.pose.orientation.z = sin(angle/2);
+        _entrance.target_pose.pose.orientation.w = cos(angle/2);
+    }
+    
 
     angle = 0;
     _alternativeEntrance.target_pose.header.frame_id = "marrtino_map";
@@ -67,21 +89,6 @@ Task3::Task3()
     _dockingStation2.target_pose.pose.orientation.y = 0.0;
     _dockingStation2.target_pose.pose.orientation.z = sin(angle/2);
     _dockingStation2.target_pose.pose.orientation.w = cos(angle/2);
-};
-
-bool Task3::init(int argc, char** argv)
-{
-    ros::init(argc, argv, NODE_NAME);
-
-    _kld_err = std::atof(argv[static_cast<int>(Argument::KLD_ERR)]);
-    _update_min_d = std::atof(argv[static_cast<int>(Argument::UPDATE_MIN_D)]);
-    _update_min_a = std::atof(argv[static_cast<int>(Argument::UPDATE_MIN_A)]);
-    _laser_min_range = std::atof(argv[static_cast<int>(Argument::LASER_MIN_RANGE)]);
-    _laser_max_range = std::atof(argv[static_cast<int>(Argument::LASER_MAX_RANGE)]);
-    _odom_alpha1 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA1)]);
-    _odom_alpha2 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA2)]);
-    _odom_alpha3 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA3)]);
-    _odom_alpha4 = std::atof(argv[static_cast<int>(Argument::ODOM_ALPHA4)]);
 
     return true;
 }
@@ -103,13 +110,20 @@ void Task3::run()
     ros::ServiceClient localConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("move_base/local_costmap/set_parameters");
     ros::ServiceClient localInflationConfig = n.serviceClient<dynamic_reconfigure::Reconfigure>("move_base/local_costmap/inflation_layer/set_parameters");
 
-    dynamic_reconfigure::Reconfigure amclSettings;
+    dynamic_reconfigure::ReconfigureRequest amclSettings;
+    dynamic_reconfigure::ReconfigureResponse amclSettingsResponse;
 
-    dynamic_reconfigure::Reconfigure DWAPlannerSettings;
-    dynamic_reconfigure::Reconfigure globalSettings;
-    dynamic_reconfigure::Reconfigure globalInflationSettings;
-    dynamic_reconfigure::Reconfigure localSettings;
-    dynamic_reconfigure::Reconfigure localInflationSettings;
+    dynamic_reconfigure::ReconfigureRequest DWAPlannerSettings;
+    dynamic_reconfigure::ReconfigureRequest globalSettings;
+    dynamic_reconfigure::ReconfigureRequest globalInflationSettings;
+    dynamic_reconfigure::ReconfigureRequest localSettings;
+    dynamic_reconfigure::ReconfigureRequest localInflationSettings;
+
+    dynamic_reconfigure::ReconfigureResponse DWAPlannerSettingsResponse;
+    dynamic_reconfigure::ReconfigureResponse globalSettingsResponse;
+    dynamic_reconfigure::ReconfigureResponse globalInflationSettingsResponse;
+    dynamic_reconfigure::ReconfigureResponse localSettingsResponse;
+    dynamic_reconfigure::ReconfigureResponse localInflationSettingsResponse;
 
     _initAMCLParams(amclSettings);
     _initMoveBaseParams(DWAPlannerSettings, globalSettings, globalInflationSettings, localSettings, localInflationSettings);
@@ -117,10 +131,12 @@ void Task3::run()
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
-    localizationConfig.call(amclSettings);
-    DWAPlannerConfig.call(DWAPlannerSettings);
-    globalConfig.call(globalSettings);
-    localConfig.call(localSettings);
+    localizationConfig.call(amclSettings, amclSettingsResponse);
+    DWAPlannerConfig.call(DWAPlannerSettings, DWAPlannerSettingsResponse);
+    globalConfig.call(globalSettings, globalSettingsResponse);
+    globalInflationConfig.call(globalInflationSettings, globalInflationSettingsResponse);
+    localConfig.call(localSettings, localSettingsResponse);
+    localInflationConfig.call(localInflationSettings, localInflationSettingsResponse);
 
     MoveBaseClient ac("move_base", true);
 
@@ -171,205 +187,205 @@ void Task3::run()
     */
 }
 
-void Task3::_initAMCLParams(dynamic_reconfigure::Reconfigure& amclSettings)
+void Task3::_initAMCLParams(dynamic_reconfigure::ReconfigureRequest& amclSettings)
 {
     dynamic_reconfigure::DoubleParameter kld_err;
     kld_err.name = "kld_err";
     kld_err.value = _kld_err;
-    amclSettings.request.config.doubles.push_back(kld_err);
+    amclSettings.config.doubles.push_back(kld_err);
 
     dynamic_reconfigure::DoubleParameter update_min_d;
     update_min_d.name = "update_min_d";
     update_min_d.value = _update_min_d;
-    amclSettings.request.config.doubles.push_back(update_min_d);
+    amclSettings.config.doubles.push_back(update_min_d);
 
     dynamic_reconfigure::DoubleParameter update_min_a;
     update_min_a.name = "update_min_a";
     update_min_a.value = _update_min_a;
-    amclSettings.request.config.doubles.push_back(update_min_a);
+    amclSettings.config.doubles.push_back(update_min_a);
 
     dynamic_reconfigure::DoubleParameter laser_min_range;
     laser_min_range.name = "laser_min_range";
     laser_min_range.value = _laser_min_range;
-    amclSettings.request.config.doubles.push_back(laser_min_range);
+    amclSettings.config.doubles.push_back(laser_min_range);
 
     dynamic_reconfigure::DoubleParameter laser_max_range;
     laser_max_range.name = "laser_max_range";
     laser_max_range.value = _laser_max_range;
-    amclSettings.request.config.doubles.push_back(laser_max_range);
+    amclSettings.config.doubles.push_back(laser_max_range);
 
     dynamic_reconfigure::DoubleParameter odom_alpha1;
     odom_alpha1.name = "odom_alpha1";
     odom_alpha1.value = _odom_alpha1;
-    amclSettings.request.config.doubles.push_back(odom_alpha1);
+    amclSettings.config.doubles.push_back(odom_alpha1);
 
     dynamic_reconfigure::DoubleParameter odom_alpha2;
     odom_alpha2.name = "odom_alpha2";
     odom_alpha2.value = _odom_alpha2;
-    amclSettings.request.config.doubles.push_back(odom_alpha2);
+    amclSettings.config.doubles.push_back(odom_alpha2);
 
     dynamic_reconfigure::DoubleParameter odom_alpha3;
     odom_alpha3.name = "odom_alpha3";
     odom_alpha3.value = _odom_alpha3;
-    amclSettings.request.config.doubles.push_back(odom_alpha3);
+    amclSettings.config.doubles.push_back(odom_alpha3);
 
     dynamic_reconfigure::DoubleParameter odom_alpha4;
     odom_alpha4.name = "odom_alpha4";
     odom_alpha4.value = _odom_alpha4;
-    amclSettings.request.config.doubles.push_back(odom_alpha4);
+    amclSettings.config.doubles.push_back(odom_alpha4);
 }
 
-void Task3::_initMoveBaseParams(dynamic_reconfigure::Reconfigure& DWAPlannerSettings, 
-                                dynamic_reconfigure::Reconfigure& globalSettings,
-                                dynamic_reconfigure::Reconfigure& globalInflationSettings, 
-                                dynamic_reconfigure::Reconfigure& localSettings,
-                                dynamic_reconfigure::Reconfigure& localInflationSettings)
+void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlannerSettings, 
+                                dynamic_reconfigure::ReconfigureRequest& globalSettings,
+                                dynamic_reconfigure::ReconfigureRequest& globalInflationSettings, 
+                                dynamic_reconfigure::ReconfigureRequest& localSettings,
+                                dynamic_reconfigure::ReconfigureRequest& localInflationSettings)
 {
     /* Set DWA parameters. */
     dynamic_reconfigure::DoubleParameter acc_lim_x;
     acc_lim_x.name = "acc_lim_x";
     acc_lim_x.value = 0.7;
-    DWAPlannerSettings.request.config.doubles.push_back(acc_lim_x);
+    DWAPlannerSettings.config.doubles.push_back(acc_lim_x);
 
     dynamic_reconfigure::DoubleParameter acc_lim_th;
     acc_lim_th.name = "acc_lim_theta";
     acc_lim_th.value = 2.0;
-    DWAPlannerSettings.request.config.doubles.push_back(acc_lim_th);
+    DWAPlannerSettings.config.doubles.push_back(acc_lim_th);
 
     dynamic_reconfigure::DoubleParameter max_vel_x;
     max_vel_x.name = "max_vel_x";
     max_vel_x.value = 0.3;
-    DWAPlannerSettings.request.config.doubles.push_back(max_vel_x);    
+    DWAPlannerSettings.config.doubles.push_back(max_vel_x);    
     
     dynamic_reconfigure::DoubleParameter min_vel_x;
     min_vel_x.name = "min_vel_x";
     min_vel_x.value = -0.3;
-    DWAPlannerSettings.request.config.doubles.push_back(min_vel_x);
+    DWAPlannerSettings.config.doubles.push_back(min_vel_x);
 
     dynamic_reconfigure::DoubleParameter max_rot_vel;
     max_rot_vel.name = "max_rot_vel";
-    max_rot_vel.value = 1.5;
-    DWAPlannerSettings.request.config.doubles.push_back(max_rot_vel);
+    max_rot_vel.value = 2.0;
+    DWAPlannerSettings.config.doubles.push_back(max_rot_vel);
 
-    dynamic_reconfigure::DoubleParameter min_rot_vel;
+    dynamic_reconfigure::DoubleParameter min_rot_vel; ///////////////////////////
     min_rot_vel.name = "min_rot_vel";
-    min_rot_vel.value = -1.5;
-    DWAPlannerSettings.request.config.doubles.push_back(min_rot_vel);    
+    min_rot_vel.value = 0.5;
+    DWAPlannerSettings.config.doubles.push_back(min_rot_vel);    
     
     dynamic_reconfigure::DoubleParameter yaw_goal_tolerance;
     yaw_goal_tolerance.name = "yaw_goal_tolerance";
     yaw_goal_tolerance.value = 0.3;
-    DWAPlannerSettings.request.config.doubles.push_back(yaw_goal_tolerance);
+    DWAPlannerSettings.config.doubles.push_back(yaw_goal_tolerance);
 
     dynamic_reconfigure::DoubleParameter xy_goal_tolerance;
     xy_goal_tolerance.name = "xy_goal_tolerance";
     xy_goal_tolerance.value = 0.2;
-    DWAPlannerSettings.request.config.doubles.push_back(xy_goal_tolerance);
+    DWAPlannerSettings.config.doubles.push_back(xy_goal_tolerance);
     
     dynamic_reconfigure::DoubleParameter sim_time;
     sim_time.name = "sim_time";
     sim_time.value = 3.0;
-    DWAPlannerSettings.request.config.doubles.push_back(sim_time);    
+    DWAPlannerSettings.config.doubles.push_back(sim_time);    
 
     dynamic_reconfigure::IntParameter vx_samples;
     vx_samples.name = "vx_samples";
     vx_samples.value = 3;
-    DWAPlannerSettings.request.config.ints.push_back(vx_samples);      
+    DWAPlannerSettings.config.ints.push_back(vx_samples);      
     
     dynamic_reconfigure::DoubleParameter path_distance_bias;
     path_distance_bias.name = "path_distance_bias";
     path_distance_bias.value = 50.0;
-    DWAPlannerSettings.request.config.doubles.push_back(path_distance_bias); 
+    DWAPlannerSettings.config.doubles.push_back(path_distance_bias); 
 
     dynamic_reconfigure::DoubleParameter goal_distance_bias;
     goal_distance_bias.name = "goal_distance_bias";
     goal_distance_bias.value = 12.0;
-    DWAPlannerSettings.request.config.doubles.push_back(goal_distance_bias);
+    DWAPlannerSettings.config.doubles.push_back(goal_distance_bias);
 
     dynamic_reconfigure::DoubleParameter occdist_scale;
     occdist_scale.name = "occdist_scale";
     occdist_scale.value = 0.005;
-    DWAPlannerSettings.request.config.doubles.push_back(occdist_scale);
+    DWAPlannerSettings.config.doubles.push_back(occdist_scale);
     
     dynamic_reconfigure::DoubleParameter forward_point_distance;
     forward_point_distance.name = "forward_point_distance";
     forward_point_distance.value = 0.325;
-    DWAPlannerSettings.request.config.doubles.push_back(forward_point_distance);
+    DWAPlannerSettings.config.doubles.push_back(forward_point_distance);
     
     dynamic_reconfigure::DoubleParameter stock_timer_buffer;
     stock_timer_buffer.name = "stop_time_buffer";
     stock_timer_buffer.value = 0.2;
-    DWAPlannerSettings.request.config.doubles.push_back(stock_timer_buffer); 
+    DWAPlannerSettings.config.doubles.push_back(stock_timer_buffer); 
     
     dynamic_reconfigure::DoubleParameter scaling_speed;
     scaling_speed.name = "scaling_speed";
     scaling_speed.value = 0.25;
-    DWAPlannerSettings.request.config.doubles.push_back(scaling_speed);
+    DWAPlannerSettings.config.doubles.push_back(scaling_speed);
 
     dynamic_reconfigure::DoubleParameter max_scaling_factor;
     max_scaling_factor.name = "max_scaling_factor";
     max_scaling_factor.value = 0.2;
-    DWAPlannerSettings.request.config.doubles.push_back(max_scaling_factor); 
+    DWAPlannerSettings.config.doubles.push_back(max_scaling_factor); 
     
     dynamic_reconfigure::DoubleParameter oscillation_reset_dist;
     oscillation_reset_dist.name = "oscillation_reset_dist";
     oscillation_reset_dist.value = 0.05;
-    DWAPlannerSettings.request.config.doubles.push_back(oscillation_reset_dist);  
+    DWAPlannerSettings.config.doubles.push_back(oscillation_reset_dist);  
 
 
     /* Set common costmap parameters. */
     dynamic_reconfigure::StrParameter footprint;
     footprint.name = "footprint";
-    footprint.value = "[[-0.13,-0.21],[-0.13,0.21],[0.13,0.21],[0.13,-0.21]]";
-    globalSettings.request.config.strs.push_back(footprint);
-    localSettings.request.config.strs.push_back(footprint);
+    footprint.value = "[[-0.13,-0.215],[-0.13,0.215],[0.135,0.215],[0.135,-0.215]]";
+    globalSettings.config.strs.push_back(footprint);
+    localSettings.config.strs.push_back(footprint);
 
     dynamic_reconfigure::DoubleParameter footprint_padding;
     footprint_padding.name = "footprint_padding";
     footprint_padding.value = 0.01;
-    globalSettings.request.config.doubles.push_back(footprint_padding);
-    localSettings.request.config.doubles.push_back(footprint_padding); 
+    globalSettings.config.doubles.push_back(footprint_padding);
+    localSettings.config.doubles.push_back(footprint_padding); 
 
     dynamic_reconfigure::DoubleParameter update_frequency;
     update_frequency.name = "update_frequency";
     update_frequency.value = 4.0;
-    globalSettings.request.config.doubles.push_back(update_frequency);
-    localSettings.request.config.doubles.push_back(update_frequency);
+    globalSettings.config.doubles.push_back(update_frequency);
+    localSettings.config.doubles.push_back(update_frequency);
 
     dynamic_reconfigure::DoubleParameter publish_frequency;
     publish_frequency.name = "publish_frequency";
     publish_frequency.value = 3.0;
-    globalSettings.request.config.doubles.push_back(publish_frequency);
-    localSettings.request.config.doubles.push_back(publish_frequency);
+    globalSettings.config.doubles.push_back(publish_frequency);
+    localSettings.config.doubles.push_back(publish_frequency);
 
     dynamic_reconfigure::DoubleParameter transform_tolerance;
     transform_tolerance.name = "transform_tolerance";
     transform_tolerance.value = 0.5;
-    globalSettings.request.config.doubles.push_back(transform_tolerance);
-    localSettings.request.config.doubles.push_back(transform_tolerance);   
+    globalSettings.config.doubles.push_back(transform_tolerance);
+    localSettings.config.doubles.push_back(transform_tolerance);   
 
     dynamic_reconfigure::DoubleParameter resolution;
     resolution.name = "resolution";
     resolution.value = 0.01;
-    globalSettings.request.config.doubles.push_back(resolution);
-    localSettings.request.config.doubles.push_back(resolution);     
+    globalSettings.config.doubles.push_back(resolution);
+    localSettings.config.doubles.push_back(resolution);     
 
     dynamic_reconfigure::DoubleParameter cost_scaling_factor;
     cost_scaling_factor.name = "cost_scaling_factor";
     cost_scaling_factor.value = 10.0;
-    globalInflationSettings.request.config.doubles.push_back(cost_scaling_factor);
-    localInflationSettings.request.config.doubles.push_back(cost_scaling_factor); 
+    globalInflationSettings.config.doubles.push_back(cost_scaling_factor);
+    localInflationSettings.config.doubles.push_back(cost_scaling_factor); 
 
     /* Set inflation parameters. */
     dynamic_reconfigure::DoubleParameter global_inflation_radius;
     global_inflation_radius.name = "inflation_radius";
-    global_inflation_radius.value = 0.07;
-    globalInflationSettings.request.config.doubles.push_back(global_inflation_radius);
+    global_inflation_radius.value = 0.06;
+    globalInflationSettings.config.doubles.push_back(global_inflation_radius);
 
     dynamic_reconfigure::DoubleParameter local_inflation_radius;
     local_inflation_radius.name = "inflation_radius";
     local_inflation_radius.value = 0.01;
-    localInflationSettings.request.config.doubles.push_back(local_inflation_radius);
+    localInflationSettings.config.doubles.push_back(local_inflation_radius);
 }
 
 void Task3::_move(float distance, double speed, ros::Publisher& motor_control)

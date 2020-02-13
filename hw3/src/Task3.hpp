@@ -61,12 +61,12 @@ private:
     move_base_msgs::MoveBaseGoal _preDockingStation;
     move_base_msgs::MoveBaseGoal _dockingStation1;
     move_base_msgs::MoveBaseGoal _dockingStation2;
-    void _initAMCLParams(dynamic_reconfigure::Reconfigure& amclSettings);
-    void _initMoveBaseParams(dynamic_reconfigure::Reconfigure& DWAPlannerSettings, 
-                             dynamic_reconfigure::Reconfigure& globalSettings,
-                             dynamic_reconfigure::Reconfigure& globalInflationSettings, 
-                             dynamic_reconfigure::Reconfigure& localSettings,
-                             dynamic_reconfigure::Reconfigure& localInflationSettings);
+    void _initAMCLParams(dynamic_reconfigure::ReconfigureRequest& amclSettings);
+    void _initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlannerSettings, 
+                             dynamic_reconfigure::ReconfigureRequest& globalSettings,
+                             dynamic_reconfigure::ReconfigureRequest& globalInflationSettings, 
+                             dynamic_reconfigure::ReconfigureRequest& localSettings,
+                             dynamic_reconfigure::ReconfigureRequest& localInflationSettings);
     void _move(float distance, double speed, ros::Publisher& motor_control);
     void _turn(float angle, double speed, ros::Publisher& motor_control);
     void _set_velocities(float lin_vel, float ang_vel, ros::Publisher& motor_control);
@@ -87,6 +87,8 @@ private:
     double _odom_alpha2;
     double _odom_alpha3;
     double _odom_alpha4;
+
+    bool _simulation;
 };
 
 #endif

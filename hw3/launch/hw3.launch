@@ -6,7 +6,7 @@
     <arg name="update_min_a" value="3.1415926535/8"/>
     <arg name="laser_min_range" value="-1.0"/>
     <arg name="laser_max_range" value="-1.0"/>
-    <arg name="odom_alpha1" value="0.3"/> <!-- Rotation noise from rotation. -->
+    <arg name="odom_alpha1" value="0.6"/> <!-- Rotation noise from rotation. -->
     <arg name="odom_alpha2" value="0.3"/> <!-- Rotation noise from translation. -->
     <arg name="odom_alpha3" value="0.1"/> <!-- Translation noise from translation. -->
     <arg name="odom_alpha4" value="0.1"/> <!-- Translation noise from rotation. -->
@@ -15,17 +15,5 @@
     <node name="hw3" pkg="hw3" type="hw3" args="$(arg path) $(arg simulation) $(arg kld_err) $(arg update_min_d) $(arg update_min_a)
                                                 $(arg laser_min_range) $(arg laser_max_range) $(arg odom_alpha1) $(arg odom_alpha2) 
                                                 $(arg odom_alpha3) $(arg odom_alpha4)" output="screen"/>
-    <!--
-        <node name="map_server" pkg="map_server" type="map_server"
-            args="$(find ar_arena)/maps/arena.yaml" output="screen"/>
-            <include file="$(find amcl)/examples/amcl_diff.launch" />
-            <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
-            <rosparam file="$(find hw3)/config/costmap_common.yaml" command="load" ns="global_costmap" />
-            <rosparam file="$(find hw3)/config/costmap_common.yaml" command="load" ns="local_costmap" />
-            <rosparam file="$(find hw3)/config/costmap_local.yaml" command="load" />
-            <rosparam file="$(find hw3)/config/costmap_global_static.yaml" command="load" />
-            <rosparam file="$(find hw3)/config/planner.yaml" command="load" />
-        </node>
-    -->
     </group>
 </launch>
