@@ -503,15 +503,41 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
 
         if (!_simulation)
         {
+            std::vector<double> prismJointTarget;
+            prismJointTarget.resize(NUM_MANIPULATOR_JOINTS);
+            prismJointTarget = move_group.getCurrentJointValues();
+    
+            prismJointTarget[4] = -0.83;
+            prismJointTarget[5] = -2.18;
+
+            move_group.setJointValueTarget(prismJointTarget);
+
+            move_group.setStartStateToCurrentState();
+            success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+            if (!success)
+            {
+                ROS_WARN("Failed to move to grasping position.");
+                return lab::Status::PARTIAL_FAILURE;
+            }
+            if (!move_group.execute(myPlan))
+            {
+                ROS_WARN("Failed to execute plan.");
+                return lab::Status::PARTIAL_FAILURE;
+            }
+            ros::Duration(WAIT_TIME).sleep();
+
+
             /* Approach target object */
+            /*
             if (!_approachObject(move_group, static_cast<lab::Mesh>(target.type)))
             {
                 ROS_WARN("Failed to plan approach.");
                 _moveToReferencePosition(move_group);
                 return lab::Status::PARTIAL_FAILURE;
             }
-            ros::Duration(WAIT_TIME).sleep();
+            ros::Duration(WAIT_TIME).sleep();*/
         }
+        
 
         move_group.attachObject(target.name); // Attach the target collision object to the manipulator.
         /* Gripper related code. */
@@ -680,39 +706,7 @@ bool Task::_moveToReferencePosition(moveit::planning_interface::MoveGroupInterfa
 }
 
 bool Task::_approachObject(moveit::planning_interface::MoveGroupInterface& move_group, lab::Mesh targetType)
-{
-    /*
-    ROS_WARN("Approach? 0 to end.");
-    int a = 1;
-    bool done = false;
-    while (!done)
-    {
-        std::cin >> a;
-        if (a == 0) done = true;
-        else
-        {
-            geometry_msgs::PoseStamped targetPose = move_group.getCurrentPose();
-            targetPose.pose.position.z -= 0.01;
-            ROS_WARN("Z: %f", targetPose.pose.position.z);
-            move_group.setPoseTarget(targetPose);
-            ROS_INFO("Approaching object.");
-            moveit::planning_interface::MoveGroupInterface::Plan myPlan;
-            bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!success)
-            {
-                ROS_WARN("Planning failed.");
-                return false;
-            }
-            if (!move_group.execute(myPlan))
-            {
-                ROS_WARN("Failed to approach object.");
-                return false;
-            }
-        }
-    }
-    return true;
-    */
-    
+{    
     geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
     double targetZ;
     switch(targetType)
@@ -729,57 +723,36 @@ bool Task::_approachObject(moveit::planning_interface::MoveGroupInterface& move_
     }
     ROS_WARN("TargetZ: %f", targetZ);
 
-    while (currentPose.pose.position.z > targetZ)
+    std::vector<geometry_msgs::Pose> approachPath;
+    moveit_msgs::RobotTrajectory approachTrajectory;
+    geometry_msgs::Pose pose;
+    pose.position.x = currentPose.pose.position.x;
+    pose.position.y = currentPose.pose.position.y;
+    pose.position.z = currentPose.pose.position.z;
+    pose.orientation.w = currentPose.pose.orientation.w;
+    pose.orientation.x = currentPose.pose.orientation.x;
+    pose.orientation.y = currentPose.pose.orientation.y;
+    pose.orientation.z = currentPose.pose.orientation.z;
+
+    while (pose.position.z > targetZ)
     {
-        ROS_WARN("CurrentZ: %f", currentPose.pose.position.z);
-        move_group.setStartStateToCurrentState();
-        currentPose.pose.position.z -= APPROACH_STEP;
-        move_group.setPoseTarget(currentPose);
-        ROS_INFO("Approaching object.");
+        pose.position.z -= 2 * APPROACH_STEP;
+        approachPath.push_back(pose);
+    } 
+
+    double fraction = move_group.computeCartesianPath(approachPath, APPROACH_STEP, 0.0, approachTrajectory);
+    ROS_WARN("Successful approach fraction: %f", fraction);
+
+    if (fraction > 0.8)
+    {
         moveit::planning_interface::MoveGroupInterface::Plan myPlan;
-        bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-        if (!success)
-        {
-            ROS_WARN("Planning failed.");
-            return false;
-        }
+        myPlan.trajectory_ = approachTrajectory;
         if (!move_group.execute(myPlan))
         {
             ROS_WARN("Failed to approach object.");
             return false;
         }
     }
+
     return true;
-    
-    /*
-    bool done = false;
-    geometry_msgs::PoseStamped previousPose = move_group.getCurrentPose();
-    geometry_msgs::PoseStamped targetPose = previousPose;
-    previousPose.pose.position.z += DELTA_Z_THRESHOLD + 0.1;
-    while (!done)
-    {
-        move_group.setStartStateToCurrentState();
-        if (previousPose.pose.position.z - targetPose.pose.position.z >= DELTA_Z_THRESHOLD)
-        {
-            targetPose = move_group.getCurrentPose();
-            previousPose = move_group.getCurrentPose();
-            targetPose.pose.position.z -= 0.002;
-            move_group.setPoseTarget(targetPose);
-            ROS_INFO("Approaching object.");
-            moveit::planning_interface::MoveGroupInterface::Plan myPlan;
-            bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-            if (!success)
-            {
-                ROS_WARN("Planning failed.");
-                return false;
-            }
-            done = !static_cast<bool>(move_group.execute(myPlan));
-        }
-        else
-        {
-            done = true;
-        }
-        ros::Duration(1.0).sleep();
-    }
-	return true;*/
 }
