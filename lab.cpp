@@ -1,6 +1,7 @@
 #include "lab.hpp"
 
 #include <math.h>
+#include <stdio.h>
 
 namespace lab
 {

@@ -373,6 +373,11 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
         target_pose.position.x = target.coordinates.x;
         target_pose.position.y = target.coordinates.y;
         target_pose.position.z = target.coordinates.z;
+        target_pose.orientation.w = target.rotation.w;
+        target_pose.orientation.x = target.rotation.x;
+        target_pose.orientation.y = target.rotation.y;
+        target_pose.orientation.z = target.rotation.z;
+
         geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
 
         tf2::doTransform(target_pose, aboveObjectPose, transformStamped);
@@ -390,11 +395,18 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
                     aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::HEX)] + OBJ_HEIGHT_OFFSET;
                     break;
                 case lab::Mesh::PRISM:
+                    double prismAngle = lab::getZAngle({aboveObjectPose.orientation.w, 
+                                                        aboveObjectPose.orientation.x, 
+                                                        aboveObjectPose.orientation.y, 
+                                                        aboveObjectPose.orientation.z});
+                    aboveObjectPose.position.x -= 0.06*sin(prismAngle);
+                    aboveObjectPose.position.y += 0.06*cos(prismAngle);
+                    ROS_WARN("Angle: %f", prismAngle);
+                    ROS_WARN("Pose: %f, %f", aboveObjectPose.position.x, aboveObjectPose.position.y);
                     aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::PRISM)] + OBJ_HEIGHT_OFFSET;
                     break;
             }
-        } 
-        //aboveObjectPose.position.x += 0.0075;
+        }
         aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
         aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
         aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
@@ -507,8 +519,8 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
             prismJointTarget.resize(NUM_MANIPULATOR_JOINTS);
             prismJointTarget = move_group.getCurrentJointValues();
     
-            prismJointTarget[4] = -0.83;
-            prismJointTarget[5] = -2.18;
+            prismJointTarget[4] = 0.0; //-0.83
+            prismJointTarget[5] = 0.0; //-2.18
 
             move_group.setJointValueTarget(prismJointTarget);
 
@@ -528,14 +540,13 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
 
 
             /* Approach target object */
-            /*
             if (!_approachObject(move_group, static_cast<lab::Mesh>(target.type)))
             {
                 ROS_WARN("Failed to plan approach.");
                 _moveToReferencePosition(move_group);
                 return lab::Status::PARTIAL_FAILURE;
             }
-            ros::Duration(WAIT_TIME).sleep();*/
+            ros::Duration(WAIT_TIME).sleep();
         }
         
 

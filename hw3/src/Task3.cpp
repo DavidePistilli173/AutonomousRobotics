@@ -1,4 +1,3 @@
-#include <actionlib/client/simple_action_client.h>
 #include <geometry_msgs/Twist.h>
 #include <math.h>
 #include <sensor_msgs/LaserScan.h>
@@ -6,8 +5,6 @@
 #include <std_srvs/Empty.h>
 
 #include "Task3.hpp"
-
-typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
 geometry_msgs::PoseWithCovarianceStamped Task3::_currentEsimatedPose;
 sensor_msgs::LaserScan Task3::_scan;
@@ -52,12 +49,11 @@ bool Task3::init(int argc, char** argv)
         _entrance.target_pose.pose.orientation.z = sin(angle/2);
         _entrance.target_pose.pose.orientation.w = cos(angle/2);
     }
-    
 
     angle = 0;
     _alternativeEntrance.target_pose.header.frame_id = "marrtino_map";
-    _alternativeEntrance.target_pose.pose.position.x = 0.5;
-    _alternativeEntrance.target_pose.pose.position.y = 3.155;
+    _alternativeEntrance.target_pose.pose.position.x = 1.0;
+    _alternativeEntrance.target_pose.pose.position.y = 3.2;
     _alternativeEntrance.target_pose.pose.orientation.x = 0.0;
     _alternativeEntrance.target_pose.pose.orientation.y = 0.0;
     _alternativeEntrance.target_pose.pose.orientation.z = sin(angle/2);
@@ -65,7 +61,7 @@ bool Task3::init(int argc, char** argv)
 
     angle = -PI/2;
     _preDockingStation.target_pose.header.frame_id = "marrtino_map";
-    _preDockingStation.target_pose.pose.position.x = -0.0;
+    _preDockingStation.target_pose.pose.position.x = 0.17;
     _preDockingStation.target_pose.pose.position.y = 1.00;
     _preDockingStation.target_pose.pose.orientation.x = 0.0;
     _preDockingStation.target_pose.pose.orientation.y = 0.0;
@@ -81,7 +77,7 @@ bool Task3::init(int argc, char** argv)
     _dockingStation1.target_pose.pose.orientation.z = sin(angle/2);
     _dockingStation1.target_pose.pose.orientation.w = cos(angle/2);
 
-    angle = -PI/2;
+    angle = -PI;
     _dockingStation2.target_pose.header.frame_id = "marrtino_map";
     _dockingStation2.target_pose.pose.position.x = -0.465;
     _dockingStation2.target_pose.pose.position.y = 0.645;
@@ -89,6 +85,33 @@ bool Task3::init(int argc, char** argv)
     _dockingStation2.target_pose.pose.orientation.y = 0.0;
     _dockingStation2.target_pose.pose.orientation.z = sin(angle/2);
     _dockingStation2.target_pose.pose.orientation.w = cos(angle/2);
+
+    angle = 3*PI/4;
+    _returnBeginning.target_pose.header.frame_id = "marrtino_map";
+    _returnBeginning.target_pose.pose.position.x = 0.75;
+    _returnBeginning.target_pose.pose.position.y = 3.65;
+    _returnBeginning.target_pose.pose.orientation.x = 0.0;
+    _returnBeginning.target_pose.pose.orientation.y = 0.0;
+    _returnBeginning.target_pose.pose.orientation.z = sin(angle/2);
+    _returnBeginning.target_pose.pose.orientation.w = cos(angle/2);
+
+    angle = -PI;
+    _returnCorridor.target_pose.header.frame_id = "marrtino_map";
+    _returnCorridor.target_pose.pose.position.x = -0.85;
+    _returnCorridor.target_pose.pose.position.y = 3.75;
+    _returnCorridor.target_pose.pose.orientation.x = 0.0;
+    _returnCorridor.target_pose.pose.orientation.y = 0.0;
+    _returnCorridor.target_pose.pose.orientation.z = sin(angle/2);
+    _returnCorridor.target_pose.pose.orientation.w = cos(angle/2);
+
+    angle = PI/2;
+    _marrtinoStation.target_pose.header.frame_id = "marrtino_map";
+    _marrtinoStation.target_pose.pose.position.x = -1.2;
+    _marrtinoStation.target_pose.pose.position.y = 0.075;
+    _marrtinoStation.target_pose.pose.orientation.x = 0.0;
+    _marrtinoStation.target_pose.pose.orientation.y = 0.0;
+    _marrtinoStation.target_pose.pose.orientation.z = sin(angle/2);
+    _marrtinoStation.target_pose.pose.orientation.w = cos(angle/2);    
 
     return true;
 }
@@ -145,24 +168,22 @@ void Task3::run()
 
     
     ROS_INFO("Moving to the entrance.");
-    while (ac.sendGoalAndWait(_entrance) != actionlib::SimpleClientGoalState::SUCCEEDED)
-    {
-        //double zAngle = 2 * acos(_currentEsimatedPose.pose.pose.orientation.z);
-        //if (_currentEsimatedPose.pose.pose.position.x <= -0.72 && _currentEsimatedPose.pose.pose.position.x >= -1.5 &&
-        //    _currentEsimatedPose.pose.pose.position.y <= 3.45 && _currentEsimatedPose.pose.pose.position.y >= 2.85)
-        //{
-            ROS_INFO("Backing off.");
-            _move(-0.1, -0.1, motor_control);
-        //}
-    }
+    _moveWithPlanner(ac, motor_control, _entrance);
 
     ROS_INFO("Corridor end reached.");
 
-    ROS_INFO("Object in front? %d", _obstacleInFront(_scan, PI/8));
-
+    bool obstacleInFront = _obstacleInFront(_scan, PI/8, 1.0);
+    ROS_INFO("Object in front? %d", obstacleInFront);    
     
-    /*
     ROS_INFO("Moving to the docking stations.");
+    if (!obstacleInFront)
+    {
+        _moveWithPlanner(ac, motor_control, _alternativeEntrance);
+    }
+
+    _moveWithPlanner(ac, motor_control, _preDockingStation);
+
+    /*
     while (ac.sendGoalAndWait(_preDockingStation) != actionlib::SimpleClientGoalState::SUCCEEDED)
     {
         double zAngle = 2 * acos(_currentEsimatedPose.pose.pose.orientation.z);
@@ -174,7 +195,7 @@ void Task3::run()
             _move(-0.1, -0.1, motor_control);
         }
         else if (std::abs(_preDockingStation.target_pose.pose.position.x - _currentEsimatedPose.pose.pose.position.x) <= 0.35 &&
-                 std::abs(_preDockingStation.target_pose.pose.position.y - _currentEsimatedPose.pose.pose.position.y) <= 0.35)
+                std::abs(_preDockingStation.target_pose.pose.position.y - _currentEsimatedPose.pose.pose.position.y) <= 0.35)
         {
             ROS_INFO("Completing turn.");
             double deltaZ = 2 * (asin(_preDockingStation.target_pose.pose.orientation.z) - asin(_currentEsimatedPose.pose.pose.orientation.z));
@@ -182,9 +203,18 @@ void Task3::run()
             _turn(deltaZ, -0.2, motor_control);
         }
     }
-
-    ROS_INFO("Docking stations reached.");
     */
+
+    if (!_obstacleInFront(_scan, PI/8, 0.5)) _moveWithPlanner(ac, motor_control, _dockingStation1);
+    else _moveWithPlanner(ac, motor_control, _dockingStation2);
+    ROS_INFO("Docking stations reached.");
+
+    ROS_INFO("Moving to the start of the return corridor.");
+    _moveWithPlanner(ac, motor_control, _returnBeginning);
+    ROS_INFO("Moving through the return corridor.");
+    _moveWithPlanner(ac, motor_control, _returnCorridor);
+    ROS_INFO("Going back to the start position.");
+    _moveWithPlanner(ac, motor_control, _marrtinoStation);
 }
 
 void Task3::_initAMCLParams(dynamic_reconfigure::ReconfigureRequest& amclSettings)
@@ -251,7 +281,7 @@ void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlan
     acc_lim_th.name = "acc_lim_theta";
     acc_lim_th.value = 2.0;
     DWAPlannerSettings.config.doubles.push_back(acc_lim_th);
-
+    
     dynamic_reconfigure::DoubleParameter max_vel_x;
     max_vel_x.name = "max_vel_x";
     max_vel_x.value = 0.3;
@@ -260,23 +290,13 @@ void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlan
     dynamic_reconfigure::DoubleParameter min_vel_x;
     min_vel_x.name = "min_vel_x";
     min_vel_x.value = -0.3;
-    DWAPlannerSettings.config.doubles.push_back(min_vel_x);
-
-    dynamic_reconfigure::DoubleParameter max_rot_vel;
-    max_rot_vel.name = "max_rot_vel";
-    max_rot_vel.value = 2.0;
-    DWAPlannerSettings.config.doubles.push_back(max_rot_vel);
-
-    dynamic_reconfigure::DoubleParameter min_rot_vel; ///////////////////////////
-    min_rot_vel.name = "min_rot_vel";
-    min_rot_vel.value = 0.5;
-    DWAPlannerSettings.config.doubles.push_back(min_rot_vel);    
+    DWAPlannerSettings.config.doubles.push_back(min_vel_x);   
     
     dynamic_reconfigure::DoubleParameter yaw_goal_tolerance;
     yaw_goal_tolerance.name = "yaw_goal_tolerance";
     yaw_goal_tolerance.value = 0.3;
     DWAPlannerSettings.config.doubles.push_back(yaw_goal_tolerance);
-
+    
     dynamic_reconfigure::DoubleParameter xy_goal_tolerance;
     xy_goal_tolerance.name = "xy_goal_tolerance";
     xy_goal_tolerance.value = 0.2;
@@ -285,12 +305,7 @@ void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlan
     dynamic_reconfigure::DoubleParameter sim_time;
     sim_time.name = "sim_time";
     sim_time.value = 3.0;
-    DWAPlannerSettings.config.doubles.push_back(sim_time);    
-
-    dynamic_reconfigure::IntParameter vx_samples;
-    vx_samples.name = "vx_samples";
-    vx_samples.value = 3;
-    DWAPlannerSettings.config.ints.push_back(vx_samples);      
+    DWAPlannerSettings.config.doubles.push_back(sim_time);         
     
     dynamic_reconfigure::DoubleParameter path_distance_bias;
     path_distance_bias.name = "path_distance_bias";
@@ -305,64 +320,15 @@ void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlan
     dynamic_reconfigure::DoubleParameter occdist_scale;
     occdist_scale.name = "occdist_scale";
     occdist_scale.value = 0.005;
-    DWAPlannerSettings.config.doubles.push_back(occdist_scale);
+    DWAPlannerSettings.config.doubles.push_back(occdist_scale); 
     
-    dynamic_reconfigure::DoubleParameter forward_point_distance;
-    forward_point_distance.name = "forward_point_distance";
-    forward_point_distance.value = 0.325;
-    DWAPlannerSettings.config.doubles.push_back(forward_point_distance);
-    
-    dynamic_reconfigure::DoubleParameter stock_timer_buffer;
-    stock_timer_buffer.name = "stop_time_buffer";
-    stock_timer_buffer.value = 0.2;
-    DWAPlannerSettings.config.doubles.push_back(stock_timer_buffer); 
-    
-    dynamic_reconfigure::DoubleParameter scaling_speed;
-    scaling_speed.name = "scaling_speed";
-    scaling_speed.value = 0.25;
-    DWAPlannerSettings.config.doubles.push_back(scaling_speed);
-
-    dynamic_reconfigure::DoubleParameter max_scaling_factor;
-    max_scaling_factor.name = "max_scaling_factor";
-    max_scaling_factor.value = 0.2;
-    DWAPlannerSettings.config.doubles.push_back(max_scaling_factor); 
-    
-    dynamic_reconfigure::DoubleParameter oscillation_reset_dist;
-    oscillation_reset_dist.name = "oscillation_reset_dist";
-    oscillation_reset_dist.value = 0.05;
-    DWAPlannerSettings.config.doubles.push_back(oscillation_reset_dist);  
-
 
     /* Set common costmap parameters. */
     dynamic_reconfigure::StrParameter footprint;
     footprint.name = "footprint";
     footprint.value = "[[-0.13,-0.215],[-0.13,0.215],[0.135,0.215],[0.135,-0.215]]";
     globalSettings.config.strs.push_back(footprint);
-    localSettings.config.strs.push_back(footprint);
-
-    dynamic_reconfigure::DoubleParameter footprint_padding;
-    footprint_padding.name = "footprint_padding";
-    footprint_padding.value = 0.01;
-    globalSettings.config.doubles.push_back(footprint_padding);
-    localSettings.config.doubles.push_back(footprint_padding); 
-
-    dynamic_reconfigure::DoubleParameter update_frequency;
-    update_frequency.name = "update_frequency";
-    update_frequency.value = 4.0;
-    globalSettings.config.doubles.push_back(update_frequency);
-    localSettings.config.doubles.push_back(update_frequency);
-
-    dynamic_reconfigure::DoubleParameter publish_frequency;
-    publish_frequency.name = "publish_frequency";
-    publish_frequency.value = 3.0;
-    globalSettings.config.doubles.push_back(publish_frequency);
-    localSettings.config.doubles.push_back(publish_frequency);
-
-    dynamic_reconfigure::DoubleParameter transform_tolerance;
-    transform_tolerance.name = "transform_tolerance";
-    transform_tolerance.value = 0.5;
-    globalSettings.config.doubles.push_back(transform_tolerance);
-    localSettings.config.doubles.push_back(transform_tolerance);   
+    localSettings.config.strs.push_back(footprint);  
 
     dynamic_reconfigure::DoubleParameter resolution;
     resolution.name = "resolution";
@@ -379,13 +345,35 @@ void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlan
     /* Set inflation parameters. */
     dynamic_reconfigure::DoubleParameter global_inflation_radius;
     global_inflation_radius.name = "inflation_radius";
-    global_inflation_radius.value = 0.06;
+    global_inflation_radius.value = 0.07;
     globalInflationSettings.config.doubles.push_back(global_inflation_radius);
 
     dynamic_reconfigure::DoubleParameter local_inflation_radius;
     local_inflation_radius.name = "inflation_radius";
     local_inflation_radius.value = 0.01;
     localInflationSettings.config.doubles.push_back(local_inflation_radius);
+}
+
+void Task3::_moveWithPlanner(MoveBaseClient& ac, ros::Publisher& motor_control, move_base_msgs::MoveBaseGoal goal)
+{
+    int attempt = 1;
+    while (ac.sendGoalAndWait(goal) != actionlib::SimpleClientGoalState::SUCCEEDED)
+    {
+        ROS_INFO("Backing off no.%d", attempt);
+        float backObstacleRange = _obstacleBehind(_scan, PI/4, 2*MAX_BACKING_OFF);
+        float backingOffDistance = attempt*BACKING_OFF_STEP;
+        ROS_WARN("backObstacleRange = %f, backingOffDistance = %f", backObstacleRange, backingOffDistance);
+        if (backingOffDistance > MAX_BACKING_OFF) backingOffDistance = BACKING_OFF_STEP;
+        if (backObstacleRange == -1 || backingOffDistance < backObstacleRange)
+        {
+            _move(-backingOffDistance, -0.1, motor_control);
+        }
+        else
+        {
+            _move(-backObstacleRange/2, -0.1, motor_control);
+        }
+        ++attempt;
+    }
 }
 
 void Task3::_move(float distance, double speed, ros::Publisher& motor_control)
@@ -463,27 +451,17 @@ void Task3::_laserScan(const sensor_msgs::LaserScan::ConstPtr &msg)
 }
 
 //coneAngle: Angle in which to consider scans (starting from marrtino front)
-bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle)
+bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle, float maxRange)
 {
     //Necessary angle increments to span desired angle
     int steps = coneAngle / scan.angle_increment;
     //Array containing only scans in the selected cone
     float coneScans[steps];
-    //Max range to consider (m)
-    float maxRange = 1.00;
 
     //Number of points to be detected before an obstacle is identified
     const int obsThresh = 10;
     //Index of marrtino front
     int frontIndex = scan.ranges.size() / 2;
-
-    /*
-    for(int i = 0; i < scan.ranges.size(); i++)
-    {
-        if(scan.ranges[i] < 0.8 && scan.ranges[i] > 0.5)
-            ROS_INFO("%d: %f", i, scan.ranges[i]);
-    }
-    */
 
     int detectedPoints = 0;
     float totalDistance = 0;
@@ -510,13 +488,53 @@ bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle)
             coneScans[2 * i] = 0;
     }
 
-    ROS_INFO("Points detected: %d", detectedPoints);
-
     if(detectedPoints >= obsThresh)
     {
-        ROS_INFO("Object detected at about %f m", totalDistance / detectedPoints);
         return true;
     }
     else
         return false;
+}
+
+float Task3::_obstacleBehind(sensor_msgs::LaserScan scan, float coneAngle, float maxRange)
+{
+    //Necessary angle increments to span desired angle
+    int steps = coneAngle / scan.angle_increment;
+    //Array containing only scans in the selected cone
+    float coneScans[steps];
+
+    //Number of points to be detected before an obstacle is identified
+    const int obsThresh = 10;
+    
+    int detectedPoints = 0;
+    float totalDistance = 0;
+    for(int i = 0; i < steps / 2; ++i)
+    {
+        float range = scan.ranges[i];
+        if(range < maxRange && range > 0)
+        {
+            coneScans[i] = scan.ranges[i];
+            ++detectedPoints;
+            totalDistance += range;
+        }
+        else
+            coneScans[i] = 0;
+        
+        range = scan.ranges[scan.ranges.size() - i - 1];
+        if(range < maxRange && range > 0)
+        {
+            coneScans[2 * i] = scan.ranges[scan.ranges.size() - i - 1];
+            ++detectedPoints;
+            totalDistance += range;
+        }
+        else
+            coneScans[2 * i] = 0;
+    }
+
+    if(detectedPoints >= obsThresh)
+    {
+        return totalDistance / detectedPoints;
+    }
+    else
+        return -1.0f;
 }
