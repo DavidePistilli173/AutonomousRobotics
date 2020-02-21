@@ -37,7 +37,9 @@ std::vector<moveit_msgs::CollisionObject> Task::_collisionObjects;
 std::string Task::_path;
 std::vector<double> Task::_referencePosition;
 std::vector<double> Task::_aboveDockingStation1;
+std::vector<double> Task::_aboveDockingStation2;
 std::vector<double> Task::_dockingStation1;
+std::vector<double> Task::_dockingStation2; // Target docking station.
 
 bool Task::_simulation;
 
@@ -97,21 +99,40 @@ bool Task::init(int argc, char** argv)
 
     /* Set the position above docking station 1. */
     _aboveDockingStation1.resize(NUM_MANIPULATOR_JOINTS);
-    _aboveDockingStation1[0] = -0.02; // Base joint
+    _aboveDockingStation1[0] = 1.16; // Base joint
     _aboveDockingStation1[1] = -1.38;
     _aboveDockingStation1[2] = 1.24;
     _aboveDockingStation1[3] = -1.44;
     _aboveDockingStation1[4] = -1.61;
     _aboveDockingStation1[5] = -0.02;
 
+    /* Set the position above docking station 1. */
+    _aboveDockingStation2.resize(NUM_MANIPULATOR_JOINTS);
+    _aboveDockingStation2[0] = 2.25; // Base joint
+    _aboveDockingStation2[1] = -1.38;
+    _aboveDockingStation2[2] = 1.24;
+    _aboveDockingStation2[3] = -1.44;
+    _aboveDockingStation2[4] = -1.61;
+    _aboveDockingStation2[5] = -0.02;
+
     /* Set the position of the docking station 1. */
     _dockingStation1.resize(NUM_MANIPULATOR_JOINTS);
-    _dockingStation1[0] = -0.02;
+    _dockingStation1[0] = 1.16;
     _dockingStation1[1] = -0.77;
     _dockingStation1[2] = 0.91;
     _dockingStation1[3] = -1.72;
     _dockingStation1[4] = -1.61;
     _dockingStation1[5] = -0.02;
+
+    /* Set the position of the docking station 1. */
+    _dockingStation2.resize(NUM_MANIPULATOR_JOINTS);
+    _dockingStation2[0] = 2.25;
+    _dockingStation2[1] = -0.77;
+    _dockingStation2[2] = 0.91;
+    _dockingStation2[3] = -1.72;
+    _dockingStation2[4] = -1.61;
+    _dockingStation2[5] = -0.02;
+
 
     /* No object has been moved yet. */
     for (auto& element : _completedTargets)
@@ -366,6 +387,8 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
 
         /* Set the next goal above the target object. . */
         geometry_msgs::Pose target_pose;
+		geometry_msgs::Pose target_pose_world;
+        geometry_msgs::Pose target_pose_ee;
         geometry_msgs::Pose aboveObjectPose;
         geometry_msgs::TransformStamped transformStamped;
         transformStamped = tfBuffer.lookupTransform("world", "camera_rgb_optical_frame", ros::Time(0));
@@ -380,8 +403,12 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
 
         geometry_msgs::PoseStamped currentPose = move_group.getCurrentPose();
 
-        tf2::doTransform(target_pose, aboveObjectPose, transformStamped);
-        ROS_WARN("Pose: x=%f, y=%f, z=%f", aboveObjectPose.position.x, aboveObjectPose.position.y, aboveObjectPose.position.z);
+        tf2::doTransform(target_pose, target_pose_world, transformStamped);
+
+        transformStamped = tfBuffer.lookupTransform("ee_link", "camera_rgb_optical_frame", ros::Time(0));
+        tf2::doTransform(target_pose, target_pose_ee, transformStamped);
+
+		aboveObjectPose = target_pose_world;
 
         if (_simulation) aboveObjectPose.position.z += 0.3;
         else
@@ -390,27 +417,43 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
             {
                 case lab::Mesh::CUBE:
                     aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::CUBE)] + OBJ_HEIGHT_OFFSET;
+                    aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
+                    aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
+                    aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
+                    aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
                     break;
                 case lab::Mesh::HEX:
                     aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::HEX)] + OBJ_HEIGHT_OFFSET;
+                    aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
+                    aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
+                    aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
+                    aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
                     break;
                 case lab::Mesh::PRISM:
+                    double yaw = lab::PI + lab::getZAngle({target_pose_ee.orientation.w, 
+                                                        target_pose_ee.orientation.x, 
+                                                        target_pose_ee.orientation.y, 
+                                                        target_pose_ee.orientation.z});
                     double prismAngle = lab::getZAngle({aboveObjectPose.orientation.w, 
                                                         aboveObjectPose.orientation.x, 
                                                         aboveObjectPose.orientation.y, 
                                                         aboveObjectPose.orientation.z});
-                    aboveObjectPose.position.x -= 0.06*sin(prismAngle);
-                    aboveObjectPose.position.y += 0.06*cos(prismAngle);
-                    ROS_WARN("Angle: %f", prismAngle);
-                    ROS_WARN("Pose: %f, %f", aboveObjectPose.position.x, aboveObjectPose.position.y);
+                    aboveObjectPose.position.x -= 0.035*sin(prismAngle);
+                    aboveObjectPose.position.y += 0.035*cos(prismAngle);
                     aboveObjectPose.position.z = TABLE_Z + lab::MESH_HEIGHTS[static_cast<int>(lab::Mesh::PRISM)] + OBJ_HEIGHT_OFFSET;
+					tf2::Quaternion q;
+                    double roll, pitch;
+                    roll = lab::PI - (lab::PI/4)*cos(yaw);
+                    pitch = (lab::PI/4)*sin(yaw);
+					q.setRPY(roll, pitch, yaw);
+                    ROS_WARN("R,P,Y: %f, %f, %f", roll, pitch, yaw);
+					aboveObjectPose.orientation.w = q.w();
+					aboveObjectPose.orientation.x = q.x();
+					aboveObjectPose.orientation.y = q.y();
+					aboveObjectPose.orientation.z = q.z();
                     break;
             }
         }
-        aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
-        aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
-        aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
-        aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
 
         /* Move above the target object. */
         move_group.setPoseTarget(aboveObjectPose);
@@ -515,7 +558,7 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
 
         if (!_simulation)
         {
-            std::vector<double> prismJointTarget;
+            /*std::vector<double> prismJointTarget;
             prismJointTarget.resize(NUM_MANIPULATOR_JOINTS);
             prismJointTarget = move_group.getCurrentJointValues();
     
@@ -536,7 +579,7 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
                 ROS_WARN("Failed to execute plan.");
                 return lab::Status::PARTIAL_FAILURE;
             }
-            ros::Duration(WAIT_TIME).sleep();
+            ros::Duration(WAIT_TIME).sleep();*/
 
 
             /* Approach target object */
@@ -607,9 +650,15 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
     if (!_moveToReferencePosition(move_group)) return lab::Status::FAILURE;
     ros::Duration(WAIT_TIME).sleep();
 
+    std::cout << "Docking station number?\n";
+    int dockingStationNumber;
+    std::cin >> dockingStationNumber;
+
+    if (dockingStationNumber == 1) move_group.setJointValueTarget(_aboveDockingStation1);
+    else move_group.setJointValueTarget(_aboveDockingStation2);
+
     /* Moving above docking station 1. */
     current_state = move_group.getCurrentState();
-    move_group.setJointValueTarget(_aboveDockingStation1);
     ROS_INFO("Moving above docking station 1.");
     move_group.setStartStateToCurrentState();
     bool success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
@@ -628,8 +677,10 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
     /* Move to docking station 1. */
     if (!_simulation)
     {
+        if (dockingStationNumber == 1) move_group.setJointValueTarget(_dockingStation1);
+        else move_group.setJointValueTarget(_dockingStation2);
+
         current_state = move_group.getCurrentState();
-        move_group.setJointValueTarget(_dockingStation1);
         ROS_INFO("Moving to docking station 1.");
         move_group.setStartStateToCurrentState();
         success = (move_group.plan(myPlan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);

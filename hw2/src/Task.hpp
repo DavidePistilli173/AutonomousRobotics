@@ -36,7 +36,7 @@ public:
     static const std::string GRIPPER_TOPIC; // Topic used for simulated gripper operation.
 
     static const int NUM_MANIPULATOR_JOINTS = 6; // Number of manipulator joints.
-    static constexpr double WAIT_TIME = 5.0;
+    static constexpr double WAIT_TIME = 3.0;
     //static constexpr double DELTA_Z_THRESHOLD = 0.001;
     static constexpr double TABLE_Z = 0.92;
     static constexpr double OBJ_HEIGHT_OFFSET = 0.10;
@@ -66,7 +66,9 @@ private:
     static std::vector<moveit_msgs::CollisionObject> _collisionObjects; // List of all collision objects on the scene.
     static std::vector<double> _referencePosition; // Starting and fallback position.
 	static std::vector<double> _aboveDockingStation1; // Position above the target docking station.
+    static std::vector<double> _aboveDockingStation2;
     static std::vector<double> _dockingStation1; // Target docking station.
+    static std::vector<double> _dockingStation2; // Target docking station.
     static std::string _path;
 
     bool _objectAttached; // True if the manipulator is carrying an object.
