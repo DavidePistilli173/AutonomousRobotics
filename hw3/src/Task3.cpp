@@ -62,7 +62,7 @@ bool Task3::init(int argc, char** argv)
     angle = -PI/2;
     _preDockingStation.target_pose.header.frame_id = "marrtino_map";
     _preDockingStation.target_pose.pose.position.x = 0.17;
-    _preDockingStation.target_pose.pose.position.y = 1.00;
+    _preDockingStation.target_pose.pose.position.y = 1.05;
     _preDockingStation.target_pose.pose.orientation.x = 0.0;
     _preDockingStation.target_pose.pose.orientation.y = 0.0;
     _preDockingStation.target_pose.pose.orientation.z = sin(angle/2);
@@ -71,7 +71,7 @@ bool Task3::init(int argc, char** argv)
     angle = -PI/2;
     _dockingStation1.target_pose.header.frame_id = "marrtino_map";
     _dockingStation1.target_pose.pose.position.x = 0.17;
-    _dockingStation1.target_pose.pose.position.y = 0.645;
+    _dockingStation1.target_pose.pose.position.y = 0.60;
     _dockingStation1.target_pose.pose.orientation.x = 0.0;
     _dockingStation1.target_pose.pose.orientation.y = 0.0;
     _dockingStation1.target_pose.pose.orientation.z = sin(angle/2);
@@ -80,20 +80,31 @@ bool Task3::init(int argc, char** argv)
     angle = -PI;
     _dockingStation2.target_pose.header.frame_id = "marrtino_map";
     _dockingStation2.target_pose.pose.position.x = -0.465;
-    _dockingStation2.target_pose.pose.position.y = 0.645;
+    _dockingStation2.target_pose.pose.position.y = 0.60;
     _dockingStation2.target_pose.pose.orientation.x = 0.0;
     _dockingStation2.target_pose.pose.orientation.y = 0.0;
     _dockingStation2.target_pose.pose.orientation.z = sin(angle/2);
     _dockingStation2.target_pose.pose.orientation.w = cos(angle/2);
 
-    angle = 3*PI/4;
+    angle = PI/2;
     _returnBeginning.target_pose.header.frame_id = "marrtino_map";
-    _returnBeginning.target_pose.pose.position.x = 0.75;
-    _returnBeginning.target_pose.pose.position.y = 3.65;
+    _returnBeginning.target_pose.pose.position.x = 1.30;
+    _returnBeginning.target_pose.pose.position.y = 2.8;
     _returnBeginning.target_pose.pose.orientation.x = 0.0;
     _returnBeginning.target_pose.pose.orientation.y = 0.0;
     _returnBeginning.target_pose.pose.orientation.z = sin(angle/2);
     _returnBeginning.target_pose.pose.orientation.w = cos(angle/2);
+
+    
+    angle = 3*PI/4;
+    _preReturnCorridor.target_pose.header.frame_id = "marrtino_map";
+    _preReturnCorridor.target_pose.pose.position.x = 0.75;
+    _preReturnCorridor.target_pose.pose.position.y = 3.65;
+    _preReturnCorridor.target_pose.pose.orientation.x = 0.0;
+    _preReturnCorridor.target_pose.pose.orientation.y = 0.0;
+    _preReturnCorridor.target_pose.pose.orientation.z = sin(angle/2);
+    _preReturnCorridor.target_pose.pose.orientation.w = cos(angle/2);
+    
 
     angle = -PI;
     _returnCorridor.target_pose.header.frame_id = "marrtino_map";
@@ -104,7 +115,7 @@ bool Task3::init(int argc, char** argv)
     _returnCorridor.target_pose.pose.orientation.z = sin(angle/2);
     _returnCorridor.target_pose.pose.orientation.w = cos(angle/2);
 
-    angle = PI/2;
+    angle = -PI/2;
     _marrtinoStation.target_pose.header.frame_id = "marrtino_map";
     _marrtinoStation.target_pose.pose.position.x = -1.2;
     _marrtinoStation.target_pose.pose.position.y = 0.075;
@@ -205,12 +216,22 @@ void Task3::run()
     }
     */
 
-    if (!_obstacleInFront(_scan, PI/8, 0.5)) _moveWithPlanner(ac, motor_control, _dockingStation1);
-    else _moveWithPlanner(ac, motor_control, _dockingStation2);
-    ROS_INFO("Docking stations reached.");
+    if (!_obstacleInFront(_scan, PI/6, 0.9))
+    {
+        ROS_INFO("Moving to docking station 1");
+        _moveWithPlanner(ac, motor_control, _dockingStation1);
+    }
+    else
+    {
+        ROS_INFO("Moving to docking station 2");
+        _moveWithPlanner(ac, motor_control, _dockingStation2);
+    }
+    ROS_INFO("Docking station reached.");
 
     ROS_INFO("Moving to the start of the return corridor.");
     _moveWithPlanner(ac, motor_control, _returnBeginning);
+    ROS_INFO("Moving to the start of the return corridor (part 2).");
+    _moveWithPlanner(ac, motor_control, _preReturnCorridor);
     ROS_INFO("Moving through the return corridor.");
     _moveWithPlanner(ac, motor_control, _returnCorridor);
     ROS_INFO("Going back to the start position.");
@@ -326,7 +347,7 @@ void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlan
     /* Set common costmap parameters. */
     dynamic_reconfigure::StrParameter footprint;
     footprint.name = "footprint";
-    footprint.value = "[[-0.13,-0.215],[-0.13,0.215],[0.135,0.215],[0.135,-0.215]]";
+    footprint.value = "[[-0.13,-0.225],[-0.13,0.225],[0.135,0.225],[0.135,-0.225]]";
     globalSettings.config.strs.push_back(footprint);
     localSettings.config.strs.push_back(footprint);  
 
@@ -487,6 +508,8 @@ bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle, float
         else
             coneScans[2 * i] = 0;
     }
+
+    ROS_WARN("Detected Points: %d", detectedPoints);
 
     if(detectedPoints >= obsThresh)
     {

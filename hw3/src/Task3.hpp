@@ -68,6 +68,7 @@ private:
     move_base_msgs::MoveBaseGoal _dockingStation1;
     move_base_msgs::MoveBaseGoal _dockingStation2;
     move_base_msgs::MoveBaseGoal _returnBeginning;
+    move_base_msgs::MoveBaseGoal _preReturnCorridor;
     move_base_msgs::MoveBaseGoal _returnCorridor;
     move_base_msgs::MoveBaseGoal _marrtinoStation;
     void _initAMCLParams(dynamic_reconfigure::ReconfigureRequest& amclSettings);
