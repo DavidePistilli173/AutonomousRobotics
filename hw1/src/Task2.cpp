@@ -59,6 +59,9 @@ double Task2::_max_y;
 double Task2::_min_z;
 double Task2::_max_z;
 
+double Task2::_hex_height;
+double Task2::_cube_height;
+
 std::vector<DetectionObject> Task2::_targets;
 
 int Task2::_topic;
@@ -143,6 +146,9 @@ bool Task2::init(int argc, char** argv)
         _max_y = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MAX_Y)]);
         _min_z = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MIN_Z)]);
         _max_z = std::atof(argv[static_cast<int>(Argument::FILTER_REAL_MAX_Z)]);
+
+        _hex_height = 0.1;
+        _cube_height = 0.055;
     }
     else
     {
@@ -153,6 +159,9 @@ bool Task2::init(int argc, char** argv)
         _max_y = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MAX_Y)]);
         _min_z = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MIN_Z)]);
         _max_z = std::atof(argv[static_cast<int>(Argument::FILTER_SIMULATION_MAX_Z)]);
+
+        _hex_height = 0.11;
+        _cube_height = 0.067;
     }
 
     /* Load point clouds. */
@@ -321,12 +330,12 @@ void Task2::_readKinectData(const sensor_msgs::PointCloud2::ConstPtr &msg)
 
         std::string objectName = "";
         /* Choose object type based on height and colour. */
-        if (maxHeight >= 0.1)
+        if (maxHeight >= _hex_height)
         {
             detectionChoice = {Mesh::HEX, Colour::YELLOW};
             objectName = frames[1];
         }
-        else if (maxHeight >= 0.055)
+        else if (maxHeight >= _cube_height)
         {
             if (averageHue <= 140)
             { 

@@ -114,6 +114,10 @@ class Task2
         static double _min_z;
         static double _max_z;
 
+        /* Height thresholds. */
+        static double _hex_height;
+        static double _cube_height;
+
         static std::vector<DetectionObject> _targets; // Vector of all required objects.
 
         static int _topic; // Control variable for real/simulated environments. Values linked to Argument::SIMULATION.

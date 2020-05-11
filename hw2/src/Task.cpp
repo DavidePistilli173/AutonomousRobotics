@@ -410,7 +410,14 @@ lab::Status Task::_moveObject(moveit::planning_interface::MoveGroupInterface& mo
 
 		aboveObjectPose = target_pose_world;
 
-        if (_simulation) aboveObjectPose.position.z += 0.3;
+        if (_simulation)
+        {
+            aboveObjectPose.position.z += 0.3;
+            aboveObjectPose.orientation.w = currentPose.pose.orientation.w;
+            aboveObjectPose.orientation.x = currentPose.pose.orientation.x;
+            aboveObjectPose.orientation.y = currentPose.pose.orientation.y;
+            aboveObjectPose.orientation.z = currentPose.pose.orientation.z;
+        } 
         else
         {
             switch (static_cast<lab::Mesh>(target.type))

@@ -107,13 +107,26 @@ bool Task3::init(int argc, char** argv)
     
 
     angle = -PI;
-    _returnCorridor.target_pose.header.frame_id = "marrtino_map";
-    _returnCorridor.target_pose.pose.position.x = -0.85;
-    _returnCorridor.target_pose.pose.position.y = 3.75;
-    _returnCorridor.target_pose.pose.orientation.x = 0.0;
-    _returnCorridor.target_pose.pose.orientation.y = 0.0;
-    _returnCorridor.target_pose.pose.orientation.z = sin(angle/2);
-    _returnCorridor.target_pose.pose.orientation.w = cos(angle/2);
+    if (_simulation)
+    {
+        _returnCorridor.target_pose.header.frame_id = "marrtino_map";
+        _returnCorridor.target_pose.pose.position.x = -0.85;
+        _returnCorridor.target_pose.pose.position.y = 3.75;
+        _returnCorridor.target_pose.pose.orientation.x = 0.0;
+        _returnCorridor.target_pose.pose.orientation.y = 0.0;
+        _returnCorridor.target_pose.pose.orientation.z = sin(angle/2);
+        _returnCorridor.target_pose.pose.orientation.w = cos(angle/2);
+    }
+    else
+    {
+        _returnCorridor.target_pose.header.frame_id = "marrtino_map";
+        _returnCorridor.target_pose.pose.position.x = -0.85;
+        _returnCorridor.target_pose.pose.position.y = 3.75;
+        _returnCorridor.target_pose.pose.orientation.x = 0.0;
+        _returnCorridor.target_pose.pose.orientation.y = 0.0;
+        _returnCorridor.target_pose.pose.orientation.z = sin(angle/2);
+        _returnCorridor.target_pose.pose.orientation.w = cos(angle/2);
+        }
 
     angle = -PI/2;
     _marrtinoStation.target_pose.header.frame_id = "marrtino_map";
@@ -216,15 +229,31 @@ void Task3::run()
     }
     */
 
-    if (!_obstacleInFront(_scan, PI/6, 0.9))
+    if (!_simulation)
     {
-        ROS_INFO("Moving to docking station 1");
-        _moveWithPlanner(ac, motor_control, _dockingStation1);
+        if (!_obstacleInFront(_scan, PI/6, 0.9))
+        {
+            ROS_INFO("Moving to docking station 1");
+            _moveWithPlanner(ac, motor_control, _dockingStation1);
+        }
+        else
+        {
+            ROS_INFO("Moving to docking station 2");
+            _moveWithPlanner(ac, motor_control, _dockingStation2);
+        }
     }
     else
     {
-        ROS_INFO("Moving to docking station 2");
-        _moveWithPlanner(ac, motor_control, _dockingStation2);
+        if (!_obstacleInFront(_scan, PI/6, 0.8))
+        {
+            ROS_INFO("Moving to docking station 1");
+            _moveWithPlanner(ac, motor_control, _dockingStation1);
+        }
+        else
+        {
+            ROS_INFO("Moving to docking station 2");
+            _moveWithPlanner(ac, motor_control, _dockingStation2);
+        }
     }
     ROS_INFO("Docking station reached.");
 
@@ -345,11 +374,21 @@ void Task3::_initMoveBaseParams(dynamic_reconfigure::ReconfigureRequest& DWAPlan
     
 
     /* Set common costmap parameters. */
-    dynamic_reconfigure::StrParameter footprint;
-    footprint.name = "footprint";
-    footprint.value = "[[-0.13,-0.225],[-0.13,0.225],[0.135,0.225],[0.135,-0.225]]";
-    globalSettings.config.strs.push_back(footprint);
-    localSettings.config.strs.push_back(footprint);  
+    dynamic_reconfigure::StrParameter footprint;  
+    if (_simulation)
+    {
+        footprint.name = "footprint";
+        footprint.value = "[[-0.1275,-0.205],[-0.1275,0.205],[0.1275,0.205],[0.1275,-0.205]]";
+        globalSettings.config.strs.push_back(footprint);
+        localSettings.config.strs.push_back(footprint);
+    }
+    else
+    {
+        footprint.name = "footprint";
+        footprint.value = "[[-0.13,-0.225],[-0.13,0.225],[0.135,0.225],[0.135,-0.225]]";
+        globalSettings.config.strs.push_back(footprint);
+        localSettings.config.strs.push_back(footprint);
+    }
 
     dynamic_reconfigure::DoubleParameter resolution;
     resolution.name = "resolution";
@@ -381,11 +420,11 @@ void Task3::_moveWithPlanner(MoveBaseClient& ac, ros::Publisher& motor_control, 
     while (ac.sendGoalAndWait(goal) != actionlib::SimpleClientGoalState::SUCCEEDED)
     {
         ROS_INFO("Backing off no.%d", attempt);
-        float backObstacleRange = _obstacleBehind(_scan, PI/4, 2*MAX_BACKING_OFF);
+        float backObstacleRange = _obstacleBehind(_scan, PI/2.75, 2*MAX_BACKING_OFF);
         float backingOffDistance = attempt*BACKING_OFF_STEP;
         ROS_WARN("backObstacleRange = %f, backingOffDistance = %f", backObstacleRange, backingOffDistance);
         if (backingOffDistance > MAX_BACKING_OFF) backingOffDistance = BACKING_OFF_STEP;
-        if (backObstacleRange == -1 || backingOffDistance < backObstacleRange)
+        if (backObstacleRange == -1 || backingOffDistance < backObstacleRange - 0.35)
         {
             _move(-backingOffDistance, -0.1, motor_control);
         }
@@ -480,7 +519,16 @@ bool Task3::_obstacleInFront(sensor_msgs::LaserScan scan, float coneAngle, float
     float coneScans[steps];
 
     //Number of points to be detected before an obstacle is identified
-    const int obsThresh = 10;
+    int obsThresh;
+    if (_simulation)
+    {
+        obsThresh = 20;
+    }
+    else
+    {
+        obsThresh = 10;
+    }
+    
     //Index of marrtino front
     int frontIndex = scan.ranges.size() / 2;
 
